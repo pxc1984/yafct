@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	rateLimitCapacity        = 20
-	rateLimitRefillPerSecond = 10.0
+	rateLimitCapacity        = 10
+	rateLimitRefillPerSecond = 4.0
 )
 
 func RateLimitMiddleware() gin.HandlerFunc {

@@ -16,12 +16,24 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/pxc1984/flashcards-trainer/backend/api/middleware"
+	"github.com/pxc1984/flashcards-trainer/backend/store"
+	"github.com/pxc1984/flashcards-trainer/backend/store/interfaces"
 )
 
 func main() {
 	_ = godotenv.Load()
 	InitSettings()
 	initLogging()
+	storeObj, err := store.InitStore(true, "", "admin", true, "")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer func(storeObj interfaces.StoreBase) {
+		err := storeObj.Close()
+		if err != nil {
+			panic(err.Error())
+		}
+	}(storeObj)
 
 	slog.Debug("loaded settings from .env")
 
@@ -39,9 +51,9 @@ func main() {
 		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Cookie"},
 		AllowCredentials: true,
 	}))
+	router.Use(middleware.RateLimitMiddleware())
 
-	api := router.Group("/api/v1") // inject here
-	api.Use(middleware.RateLimitMiddleware())
+	_ = router.Group("/api/v1") // inject here
 
 	{
 	}
