@@ -1,6 +1,9 @@
 package store
 
 import (
+	"testing"
+
+	"github.com/pxc1984/flashcards-trainer/backend/domain/schema"
 	"github.com/pxc1984/flashcards-trainer/backend/store/interfaces"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -22,6 +25,36 @@ func (s *MemoryStoreTestSuite) TearDownTest() {
 
 func (s *MemoryStoreTestSuite) TestAdminPassword() {
 	assert.True(s.T(), s.s.CheckPassword("admin"))
+}
+
+func (s *MemoryStoreTestSuite) TestCardSetSessionFlow() {
+	setID, err := s.s.CreateCardSet([]schema.CardData{{Question: "q1", Answer: "a1"}, {Question: "q2", Answer: "a2"}})
+	assert.NoError(s.T(), err)
+
+	cards, err := s.s.GetCardSet(setID)
+	assert.NoError(s.T(), err)
+	assert.Len(s.T(), cards, 2)
+
+	sessionID, err := s.s.CreateSession(setID)
+	assert.NoError(s.T(), err)
+
+	progress, err := s.s.GetSessionProgress(setID, sessionID)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), 2, progress.Total)
+	assert.Equal(s.T(), 0, progress.Passed)
+	assert.Equal(s.T(), "q1", progress.Card.Question)
+
+	skipped, err := s.s.SkipSessionCard(setID, sessionID)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), "q2", skipped.Question)
+
+	next, err := s.s.AdvanceSession(setID, sessionID)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), "q1", next.Question)
+}
+
+func TestMemoryStoreTestSuite(t *testing.T) {
+	suite.Run(t, new(MemoryStoreTestSuite))
 }
 
 // example

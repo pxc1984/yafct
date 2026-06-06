@@ -15,6 +15,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/pxc1984/flashcards-trainer/backend/api/cards"
 	"github.com/pxc1984/flashcards-trainer/backend/api/middleware"
 	"github.com/pxc1984/flashcards-trainer/backend/store"
 	"github.com/pxc1984/flashcards-trainer/backend/store/interfaces"
@@ -53,11 +54,7 @@ func main() {
 	}))
 	apiGroup := router.Group("/api/v1") // inject here
 	apiGroup.Use(middleware.RateLimitMiddleware(middleware.RateLimitCapacity, middleware.RateLimitRefillPerSecond))
-
-	_ = apiGroup.Group("/v1") // inject here
-
-	{
-	}
+	cards.RegisterRoutes(apiGroup, storeObj)
 
 	router.GET("/api/health", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"status": "healthy"})

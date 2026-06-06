@@ -79,10 +79,10 @@ paths:
                 $ref: '#/components/schemas/Card'
 
     delete:
-      description: завершить сеанс
+      description: пропустить текущую карточку и вернуть ее в конец очереди
       responses:
-        '200':
-          description: ок завершаем сеанс забываем
+        '303':
+          description: карточка пропущена, текущее состояние доступно по GET этого же ресурса
 
     get:
       description: получить прогресс сеанса и текущий вопрос

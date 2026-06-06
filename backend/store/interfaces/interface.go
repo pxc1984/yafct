@@ -3,6 +3,7 @@ package interfaces
 import (
 	"github.com/google/uuid"
 	"github.com/pxc1984/flashcards-trainer/backend/domain/models"
+	"github.com/pxc1984/flashcards-trainer/backend/domain/schema"
 )
 
 type CacheStoreBase interface {
@@ -28,4 +29,10 @@ type StoreBase interface {
 
 	SetAdminPassword(password string)
 	CheckPassword(password string) bool
+	CreateCardSet(cards []schema.CardData) (string, error)
+	GetCardSet(id string) ([]schema.Card, error)
+	CreateSession(cardSetID string) (string, error)
+	GetSessionProgress(cardSetID string, sessionID string) (*schema.SessionProgressResponse, error)
+	AdvanceSession(cardSetID string, sessionID string) (*schema.Card, error)
+	SkipSessionCard(cardSetID string, sessionID string) (*schema.Card, error)
 }

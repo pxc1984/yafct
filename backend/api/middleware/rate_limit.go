@@ -15,7 +15,7 @@ const (
 	RateLimitRefillPerSecond = 4.0
 )
 
-func RateLimitMiddleware(capacity int, refillPerSecond int) gin.HandlerFunc {
+func RateLimitMiddleware(capacity int, refillPerSecond float64) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		cache := store.GetCacheStore()
 		if cache == nil {
