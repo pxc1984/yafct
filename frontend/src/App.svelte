@@ -4,8 +4,10 @@
   import Copy from '@lucide/svelte/icons/copy'
   import GripHorizontal from '@lucide/svelte/icons/grip-horizontal'
   import Keyboard from '@lucide/svelte/icons/keyboard'
+  import Plus from '@lucide/svelte/icons/plus'
   import Play from '@lucide/svelte/icons/play'
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw'
+  import Trash2 from '@lucide/svelte/icons/trash-2'
 
   import promptTemplate from '../prompt.txt?raw'
   import {
@@ -33,6 +35,7 @@
     | { name: 'session'; cardsetId: string; sessionId: string }
 
   const STORAGE_KEY = 'flashcards-trainer-sessions'
+  const SWIPE_HINT_STORAGE_KEY = 'flashcards-trainer-swipe-hint-seen'
   const promptText = promptTemplate.trim()
 
   let route = $state<Route>(parseRoute(window.location.pathname))
@@ -53,6 +56,7 @@
   let isDragging = $state(false)
   let dragStartX = 0
   let isMobile = $state(false)
+  let showSwipeHint = $state(false)
 
   const progressValue = $derived.by(() => {
     if (!trainingState || trainingState.total === 0) {
@@ -122,6 +126,34 @@
 
   function syncSessions(cardsetId: string) {
     sessions = readStoredSessions(cardsetId)
+  }
+
+  function removeSession(cardsetId: string, sessionId: string) {
+    if (typeof localStorage === 'undefined') {
+      return
+    }
+
+    const raw = localStorage.getItem(STORAGE_KEY)
+    const parsed = raw ? (JSON.parse(raw) as Record<string, SessionRecord[]>) : {}
+    const current = Array.isArray(parsed[cardsetId]) ? parsed[cardsetId] : []
+
+    parsed[cardsetId] = current.filter((session) => session.id !== sessionId)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed))
+    syncSessions(cardsetId)
+  }
+
+  function syncSwipeHint() {
+    if (typeof localStorage === 'undefined') {
+      showSwipeHint = false
+      return
+    }
+
+    const isSeen = localStorage.getItem(SWIPE_HINT_STORAGE_KEY) === '1'
+    showSwipeHint = !isSeen
+
+    if (!isSeen) {
+      localStorage.setItem(SWIPE_HINT_STORAGE_KEY, '1')
+    }
   }
 
   function parseCardData(input: string) {
@@ -351,6 +383,7 @@
     }
 
     if (route.name === 'session') {
+      syncSwipeHint()
       void loadTraining(route.cardsetId, route.sessionId)
     }
   })
@@ -381,6 +414,23 @@
 
     return () => {
       window.removeEventListener('keydown', onKeyDown)
+    }
+  })
+
+  $effect(() => {
+    if (!isMobile || !isDragging) {
+      return
+    }
+
+    const previousOverflow = document.body.style.overflow
+    const previousTouchAction = document.body.style.touchAction
+
+    document.body.style.overflow = 'hidden'
+    document.body.style.touchAction = 'none'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.body.style.touchAction = previousTouchAction
     }
   })
 </script>
@@ -477,25 +527,48 @@ REMARK:: `}
               {/if}
 
               {#each sessions as session}
-                <button
-                  class="flex w-full items-center justify-between rounded-2xl border bg-background/60 px-4 py-3 text-left transition hover:bg-muted/60"
-                  onclick={() => navigate(`/${activeCardsetId}/${session.id}`)}
-                >
-                  <div>
-                    <p class="font-medium">Сессия {session.id}</p>
-                    <p class="text-sm text-muted-foreground">Обновлена {formatDate(session.updatedAt)}</p>
-                  </div>
-                  <ChevronRight class="size-4 text-muted-foreground" />
-                </button>
+                <div class="flex items-center gap-2 rounded-2xl border bg-background/60 px-2 py-2 transition hover:bg-muted/60">
+                  <button
+                    class="flex min-w-0 flex-1 items-center justify-between px-2 py-1 text-left"
+                    onclick={() => navigate(`/${activeCardsetId}/${session.id}`)}
+                  >
+                    <div class="min-w-0">
+                      <p class="truncate font-medium">Сессия {session.id}</p>
+                      <p class="text-sm text-muted-foreground">Обновлена {formatDate(session.updatedAt)}</p>
+                    </div>
+                    <ChevronRight class="size-4 shrink-0 text-muted-foreground" />
+                  </button>
+
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Удалить сессию"
+                    onclick={(event) => {
+                      event.stopPropagation()
+                      removeSession(activeCardsetId, session.id)
+                    }}
+                  >
+                    <Trash2 class="size-4" />
+                  </Button>
+                </div>
               {/each}
             </Card.Content>
           </Card.Root>
         </div>
+
+        <Button
+          size="icon-lg"
+          class="fixed right-4 bottom-4 z-20 rounded-full shadow-lg sm:right-6 sm:bottom-6"
+          onclick={() => navigate('/')}
+          aria-label="Создать новый набор карточек"
+        >
+          <Plus class="size-5" />
+        </Button>
       </section>
     {/if}
 
     {#if route.name === 'session'}
-      <section class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 pb-28 sm:pb-8">
+      <section class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 overflow-x-hidden pb-28 sm:pb-8">
         <div class="flex items-center justify-between gap-3">
           <div>
             <p class="text-sm text-muted-foreground">Набор {route.cardsetId}</p>
@@ -511,23 +584,23 @@ REMARK:: `}
               <span>{trainingState?.passed ?? 0} / {trainingState?.total ?? 0}</span>
             </div>
             <div class="h-3 overflow-hidden rounded-full bg-muted">
-              <div class="h-full rounded-full bg-primary transition-all" style={`width: ${progressValue}%`}></div>
+              <div class="h-full rounded-full bg-emerald-500 transition-all" style={`width: ${progressValue}%`}></div>
             </div>
           </Card.Content>
         </Card.Root>
 
         <div class="grid gap-4 md:grid-cols-[1fr_220px]">
           <Card.Root
-            class="overflow-hidden"
+            class={`overflow-hidden transition-transform ${isDragging ? '' : 'duration-200'}`}
+            style={`transform: translateX(${dragOffset}px) rotate(${dragOffset / 30}deg);`}
+            data-dragging={isDragging}
+            data-swipe-card
             onpointerdown={handlePointerDown}
             onpointermove={handlePointerMove}
             onpointerup={handlePointerUp}
             onpointercancel={handlePointerUp}
           >
-            <div
-              class={`h-full transition-transform ${isDragging ? '' : 'duration-200'}`}
-              style={`transform: translateX(${dragOffset}px) rotate(${dragOffset / 30}deg);`}
-            >
+            <div class="h-full">
               <Card.Header>
                 <div class="flex items-center justify-between gap-3">
                   <Badge variant="secondary">Вопрос</Badge>
@@ -605,7 +678,7 @@ REMARK:: `}
           </div>
         {/if}
 
-        {#if trainingState?.card && isMobile}
+        {#if trainingState?.card && isMobile && showSwipeHint}
           <div class="fixed inset-x-0 bottom-0 border-t bg-background/95 p-4 backdrop-blur">
             <div class="mx-auto flex max-w-4xl items-center gap-3">
               <Button variant="outline" class="flex-1" onclick={toggleAnswer}>Показать / скрыть ответ</Button>
@@ -615,7 +688,14 @@ REMARK:: `}
               </Badge>
             </div>
           </div>
+        {:else if trainingState?.card && isMobile}
+          <div class="fixed inset-x-0 bottom-0 border-t bg-background/95 p-4 backdrop-blur">
+            <div class="mx-auto flex max-w-4xl items-center gap-3">
+              <Button variant="outline" class="flex-1" onclick={toggleAnswer}>Показать / скрыть ответ</Button>
+            </div>
+          </div>
         {/if}
+
       </section>
     {/if}
   </div>

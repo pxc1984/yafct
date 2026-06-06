@@ -146,3 +146,15 @@
 .math-content .katex {
   max-width: 100%;
 }
+
+@media (max-width: 767px) {
+  [data-dragging='true'] {
+    touch-action: none;
+  }
+
+  [data-swipe-card] {
+    touch-action: pan-x;
+    overscroll-behavior: contain;
+    will-change: transform;
+  }
+}

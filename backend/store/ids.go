@@ -5,9 +5,9 @@ import (
 )
 
 func newShortID() (string, error) {
-	const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
-	buf := make([]byte, 21)
-	random := make([]byte, 21)
+	const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+	buf := make([]byte, 8)
+	random := make([]byte, 8)
 	if _, err := rand.Read(random); err != nil {
 		return "", err
 	}
