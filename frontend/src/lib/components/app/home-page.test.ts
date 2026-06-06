@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/svelte'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import type { CardImage } from '$lib/api/flashcards'
+
 import HomePage from './home-page.svelte'
 
 function parseCardData(input: string) {
@@ -23,6 +25,8 @@ function parseCardData(input: string) {
     let question = ''
     let answer = ''
     let remarks = ''
+    const questionImages: CardImage[] = []
+    const answerImages: CardImage[] = []
 
     for (const line of lines) {
       if (line.startsWith('QUESTION:: ')) {
@@ -40,6 +44,16 @@ function parseCardData(input: string) {
         continue
       }
 
+      if (line.startsWith('QUESTION_IMAGE:: ')) {
+        questionImages.push({ id: line.slice('QUESTION_IMAGE:: '.length).trim(), mimeType: 'image/png', dataBase64: 'aGVsbG8=' })
+        continue
+      }
+
+      if (line.startsWith('ANSWER_IMAGE:: ')) {
+        answerImages.push({ id: line.slice('ANSWER_IMAGE:: '.length).trim(), mimeType: 'image/png', dataBase64: 'aGVsbG8=' })
+        continue
+      }
+
       throw new Error(`Карточка ${index + 1} содержит строку в неверном формате.`)
     }
 
@@ -47,7 +61,7 @@ function parseCardData(input: string) {
       throw new Error(`У карточки ${index + 1} обязательны QUESTION и ANSWER.`)
     }
 
-    return { question, answer, remarks }
+    return { question, answer, remarks, questionImages, answerImages }
   })
 }
 
@@ -58,21 +72,27 @@ function buildSourceText(count: number) {
   }).join('\n\n')
 }
 
+const defaultProps = {
+  promptText: 'prompt',
+  setTitle: '',
+  setDescription: '',
+  setAuthor: '',
+  parseCardData,
+  resolveImageById: () => null,
+  isCreating: false,
+  createError: '',
+  copyState: 'idle' as const,
+  onCopyPrompt: () => {},
+  onUploadImage: async () => ({ id: 'img-1', mimeType: 'image/png', dataBase64: 'aGVsbG8=' }),
+  onCreateSet: () => {},
+}
+
 describe('HomePage cards list preview', () => {
   it('keeps the last question outside the visible list viewport for 50 cards', async () => {
     render(HomePage, {
       props: {
-        promptText: 'prompt',
         sourceText: buildSourceText(50),
-        setTitle: '',
-        setDescription: '',
-        setAuthor: '',
-        parseCardData,
-        isCreating: false,
-        createError: '',
-        copyState: 'idle',
-        onCopyPrompt: () => {},
-        onCreateSet: () => {},
+        ...defaultProps,
       },
     })
 
@@ -103,17 +123,8 @@ describe('HomePage cards list preview', () => {
   it('adds a new card from list mode', async () => {
     render(HomePage, {
       props: {
-        promptText: 'prompt',
         sourceText: buildSourceText(2),
-        setTitle: '',
-        setDescription: '',
-        setAuthor: '',
-        parseCardData,
-        isCreating: false,
-        createError: '',
-        copyState: 'idle',
-        onCopyPrompt: () => {},
-        onCreateSet: () => {},
+        ...defaultProps,
       },
     })
 
@@ -130,17 +141,8 @@ describe('HomePage cards list preview', () => {
 
     render(HomePage, {
       props: {
-        promptText: 'prompt',
         sourceText: buildSourceText(2),
-        setTitle: '',
-        setDescription: '',
-        setAuthor: '',
-        parseCardData,
-        isCreating: false,
-        createError: '',
-        copyState: 'idle',
-        onCopyPrompt: () => {},
-        onCreateSet: () => {},
+        ...defaultProps,
       },
     })
 
@@ -163,17 +165,8 @@ describe('HomePage cards list preview', () => {
 
     render(HomePage, {
       props: {
-        promptText: 'prompt',
         sourceText: buildSourceText(2),
-        setTitle: '',
-        setDescription: '',
-        setAuthor: '',
-        parseCardData,
-        isCreating: false,
-        createError: '',
-        copyState: 'idle',
-        onCopyPrompt: () => {},
-        onCreateSet: () => {},
+        ...defaultProps,
       },
     })
 

@@ -3,6 +3,7 @@ package cards
 import (
 	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,9 +26,16 @@ func TestCardsAPIFlow(t *testing.T) {
 	apiGroup := router.Group("/api/v1")
 	RegisterRoutes(apiGroup, storeObj)
 
+	pngFile := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, 0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41, 0x54, 0x08, 0x99, 0x63, 0xf8, 0xcf, 0xc0, 0x00, 0x00, 0x03, 0x01, 0x01, 0x00, 0xc9, 0xfe, 0x92, 0xef, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82}
+	uploadResp := performMultipartRequest(router, http.MethodPost, "/api/v1/images", "file", "pixel.png", pngFile)
+	require.Equal(t, http.StatusCreated, uploadResp.Code)
+
+	var uploaded schema.UploadImageResponse
+	require.NoError(t, json.Unmarshal(uploadResp.Body.Bytes(), &uploaded))
+
 	createBody := mustJSON(t, schema.CreateCardSetRequest{
 		CardSetMetadata: schema.CardSetMetadata{Title: "<b>Title</b>", Description: "desc", Author: "<script>alert(1)</script>"},
-		Cards:           []schema.CardData{{Question: "q1", Answer: "a1", Remarks: "r1"}, {Question: "q2", Answer: "a2", Remarks: "r2"}},
+		Cards:           []schema.CardData{{Question: "q1", Answer: "a1", Remarks: "r1", QuestionImages: []schema.CardImage{uploaded.Image}}, {Question: "q2", Answer: "a2", Remarks: "r2"}},
 	})
 	createResp := performRequest(router, http.MethodPost, "/api/v1/cards", createBody)
 	require.Equal(t, http.StatusCreated, createResp.Code)
@@ -46,6 +54,8 @@ func TestCardsAPIFlow(t *testing.T) {
 	assert.Equal(t, "&lt;script&gt;alert(1)&lt;/script&gt;", cardsResp.Author)
 	assert.Equal(t, "q1", cardsResp.Cards[0].Question)
 	assert.Equal(t, "q2", cardsResp.Cards[1].Question)
+	assert.Len(t, cardsResp.Cards[0].QuestionImages, 1)
+	assert.Equal(t, uploaded.Image.ID, cardsResp.Cards[0].QuestionImages[0].ID)
 
 	startResp := performRequest(router, http.MethodPost, "/api/v1/cards/"+created.ID, nil)
 	require.Equal(t, http.StatusOK, startResp.Code)
@@ -118,6 +128,14 @@ func TestCardsAPIErrors(t *testing.T) {
 	}))
 	assert.Equal(t, http.StatusBadRequest, resp.Code)
 
+	resp = performRequest(router, http.MethodPost, "/api/v1/cards", mustJSON(t, schema.CreateCardSetRequest{
+		Cards: []schema.CardData{{Question: "q1", Answer: "a1", QuestionImages: make([]schema.CardImage, 6)}},
+	}))
+	assert.Equal(t, http.StatusBadRequest, resp.Code)
+
+	resp = performMultipartRequest(router, http.MethodPost, "/api/v1/images", "file", "notes.txt", []byte("not an image"))
+	assert.Equal(t, http.StatusBadRequest, resp.Code)
+
 	resp = performRequest(router, http.MethodGet, "/api/v1/cards/missing", nil)
 	assert.Equal(t, http.StatusNotFound, resp.Code)
 
@@ -146,4 +164,26 @@ func mustJSON(t *testing.T, value any) []byte {
 	data, err := json.Marshal(value)
 	require.NoError(t, err)
 	return data
+}
+
+func performMultipartRequest(router http.Handler, method string, path string, fieldName string, fileName string, content []byte) *httptest.ResponseRecorder {
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile(fieldName, fileName)
+	if err != nil {
+		panic(err)
+	}
+	if _, err := part.Write(content); err != nil {
+		panic(err)
+	}
+	if err := writer.Close(); err != nil {
+		panic(err)
+	}
+
+	req := httptest.NewRequest(method, path, body)
+	req.RemoteAddr = "203.0.113.5:1234"
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+	return resp
 }

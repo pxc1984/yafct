@@ -7,7 +7,9 @@
     passCurrentCard,
     skipCurrentCard,
     startSession,
+    uploadImage,
     type CardData,
+    type CardImage,
     type CardSet,
     type CreateCardSetRequest,
     type SessionState,
@@ -55,6 +57,7 @@
   let dragStartX = 0
   let isMobile = $state(false)
   let showSwipeHint = $state(false)
+  let uploadedImages = $state<Record<string, CardImage>>({})
 
   const progressValue = $derived.by(() => {
     if (!trainingState || trainingState.total === 0) {
@@ -174,6 +177,8 @@
       let question = ''
       let answer = ''
       let remarks = ''
+      const questionImages: CardImage[] = []
+      const answerImages: CardImage[] = []
 
       for (const line of lines) {
         if (line.startsWith('QUESTION:: ')) {
@@ -191,6 +196,16 @@
           continue
         }
 
+        if (line.startsWith('QUESTION_IMAGE:: ')) {
+          questionImages.push(resolveUploadedImage(line.slice('QUESTION_IMAGE:: '.length).trim(), index + 1))
+          continue
+        }
+
+        if (line.startsWith('ANSWER_IMAGE:: ')) {
+          answerImages.push(resolveUploadedImage(line.slice('ANSWER_IMAGE:: '.length).trim(), index + 1))
+          continue
+        }
+
         throw new Error(`Карточка ${index + 1} содержит строку в неверном формате.`)
       }
 
@@ -198,8 +213,28 @@
         throw new Error(`У карточки ${index + 1} обязательны QUESTION и ANSWER.`)
       }
 
-      return { question, answer, remarks } satisfies CardData
+      if (questionImages.length > 5 || answerImages.length > 5) {
+        throw new Error(`У карточки ${index + 1} можно добавить не больше 5 изображений к вопросу или ответу.`)
+      }
+
+      return { question, answer, remarks, questionImages, answerImages } satisfies CardData
     })
+  }
+
+  function resolveUploadedImage(imageId: string, cardNumber: number) {
+    const image = uploadedImages[imageId]
+
+    if (!image) {
+      throw new Error(`Карточка ${cardNumber} содержит изображение ${imageId}, которого нет в текущем черновике.`)
+    }
+
+    return image
+  }
+
+  async function handleUploadImage(file: File) {
+    const image = await uploadImage(file)
+    uploadedImages = { ...uploadedImages, [image.id]: image }
+    return image
   }
 
   async function copyPrompt() {
@@ -211,13 +246,13 @@
     }, 1500)
   }
 
-  async function createSet() {
+  async function createSet(nextCards?: CardData[]) {
     createError = ''
 
     let cards: CardData[]
 
     try {
-      cards = parseCardData(sourceText)
+      cards = nextCards ?? parseCardData(sourceText)
     } catch (error) {
       createError = error instanceof Error ? error.message : 'Не удалось разобрать карточки.'
       return
@@ -465,10 +500,12 @@
         bind:setDescription
         bind:setAuthor
         {parseCardData}
+        resolveImageById={(imageId) => uploadedImages[imageId] ?? null}
         isCreating={isCreating}
         createError={createError}
         copyState={copyState}
         onCopyPrompt={copyPrompt}
+        onUploadImage={handleUploadImage}
         onCreateSet={createSet}
       />
     {/if}

@@ -7,6 +7,29 @@ servers:
   - url: 'https://ft.iamamaev.ru'
   - url: 'http://localhost:8080'
 paths:
+  /api/v1/images:
+    post:
+      description: Загрузить изображение в базу данных
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Изображение загружено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadImageResponse'
+
   /api/v1/cards:
     post:
       description: Создать набор карточек
@@ -118,6 +141,45 @@ components:
 
         remarks:
           type: string
+
+        questionImages:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/CardImage'
+
+        answerImages:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/CardImage'
+
+    CardImage:
+      type: object
+      required:
+        - id
+        - mimeType
+        - dataBase64
+      properties:
+        id:
+          type: string
+          format: uuid
+
+        mimeType:
+          type: string
+          description: MIME-тип исходного изображения.
+
+        dataBase64:
+          type: string
+          description: Содержимое изображения в base64.
+
+    UploadImageResponse:
+      type: object
+      required:
+        - image
+      properties:
+        image:
+          $ref: '#/components/schemas/CardImage'
 
     CardSetMetadata:
       type: object

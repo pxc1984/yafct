@@ -28,9 +28,15 @@ func (s *MemoryStoreTestSuite) TestAdminPassword() {
 }
 
 func (s *MemoryStoreTestSuite) TestCardSetSessionFlow() {
+	image, err := s.s.CreateUploadedImage("image/png", "aGVsbG8=", "127.0.0.1")
+	assert.NoError(s.T(), err)
+
 	setID, err := s.s.CreateCardSet(schema.CreateCardSetRequest{
 		CardSetMetadata: schema.CardSetMetadata{Title: "set title", Description: "set description", Author: "set author"},
-		Cards:           []schema.CardData{{Question: "q1", Answer: "a1"}, {Question: "q2", Answer: "a2"}},
+		Cards: []schema.CardData{
+			{Question: "q1", Answer: "a1", QuestionImages: []schema.CardImage{*image}},
+			{Question: "q2", Answer: "a2"},
+		},
 	}, "127.0.0.1")
 	assert.NoError(s.T(), err)
 
@@ -38,6 +44,8 @@ func (s *MemoryStoreTestSuite) TestCardSetSessionFlow() {
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "set title", cardSet.Title)
 	assert.Len(s.T(), cardSet.Cards, 2)
+	assert.Len(s.T(), cardSet.Cards[0].QuestionImages, 1)
+	assert.Equal(s.T(), image.ID, cardSet.Cards[0].QuestionImages[0].ID)
 
 	sessionID, err := s.s.CreateSession(setID, "127.0.0.1")
 	assert.NoError(s.T(), err)

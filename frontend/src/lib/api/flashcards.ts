@@ -4,6 +4,14 @@ export type CardData = {
   question: string
   answer: string
   remarks: string
+  questionImages: CardImage[]
+  answerImages: CardImage[]
+}
+
+export type CardImage = {
+  id: string
+  mimeType: string
+  dataBase64: string
 }
 
 export type CardSetMetadata = {
@@ -42,6 +50,19 @@ export async function getCardSet(cardsetId: string) {
 export async function createCardSet(payload: CreateCardSetRequest) {
   const { data } = await api.post<{ id: string }>('/api/v1/cards', payload)
   return data
+}
+
+export async function uploadImage(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const { data } = await api.post<{ image: CardImage }>('/api/v1/images', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+
+  return data.image
 }
 
 export async function startSession(cardsetId: string) {

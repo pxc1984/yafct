@@ -1,8 +1,10 @@
 package cards
 
 import (
+	"encoding/base64"
 	"errors"
 	"html"
+	"io"
 	"net/http"
 	"strings"
 
@@ -19,6 +21,7 @@ type Handler struct {
 func RegisterRoutes(router gin.IRoutes, store interfaces.StoreBase) {
 	h := Handler{store: store}
 	router.POST("/cards", h.createCardSet)
+	router.POST("/images", h.uploadImage)
 	router.GET("/cards/:id", h.getCardSet)
 	router.POST("/cards/:id", h.startSession)
 	router.POST("/cards/:id/:session_id", h.nextCard)
@@ -39,6 +42,12 @@ func (h Handler) createCardSet(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "cards payload must not be empty"})
 		return
 	}
+	for _, card := range request.Cards {
+		if len(card.QuestionImages) > 5 || len(card.AnswerImages) > 5 {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "each side of a card supports at most 5 images"})
+			return
+		}
+	}
 	if len(request.Title) > 120 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "title must be at most 120 characters"})
 		return
@@ -49,6 +58,45 @@ func (h Handler) createCardSet(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusCreated, schema.CreateCardSetResponse{ID: id})
+}
+
+func (h Handler) uploadImage(ctx *gin.Context) {
+	fileHeader, err := ctx.FormFile("file")
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "file is required"})
+		return
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "failed to open uploaded file"})
+		return
+	}
+	defer file.Close()
+
+	content, err := io.ReadAll(file)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "failed to read uploaded file"})
+		return
+	}
+	if len(content) == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "uploaded file is empty"})
+		return
+	}
+
+	mimeType := http.DetectContentType(content)
+	if !strings.HasPrefix(mimeType, "image/") {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "uploaded file must be an image"})
+		return
+	}
+
+	image, err := h.store.CreateUploadedImage(mimeType, base64.StdEncoding.EncodeToString(content), ctx.ClientIP())
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, schema.UploadImageResponse{Image: *image})
 }
 
 func sanitizePlainText(value string) string {

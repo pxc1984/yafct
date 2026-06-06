@@ -9,13 +9,28 @@ type CardSet struct {
 	Cards       []Card `gorm:"constraint:OnDelete:CASCADE"`
 }
 
+type UploadedImage struct {
+	ID          string `gorm:"primaryKey;type:uuid"`
+	MimeType    string `gorm:"size:255;not null"`
+	DataBase64  string `gorm:"type:text;not null"`
+	CreatedByIP string `gorm:"size:45;not null;default:''"`
+}
+
+type CardImage struct {
+	ID         string `json:"id"`
+	MimeType   string `json:"mimeType"`
+	DataBase64 string `json:"dataBase64"`
+}
+
 type Card struct {
-	ID        string `gorm:"primaryKey;type:uuid"`
-	CardSetID string `gorm:"index;size:21;not null"`
-	Position  int    `gorm:"not null"`
-	Question  string `gorm:"not null"`
-	Answer    string `gorm:"not null"`
-	Remarks   string
+	ID             string `gorm:"primaryKey;type:uuid"`
+	CardSetID      string `gorm:"index;size:21;not null"`
+	Position       int    `gorm:"not null"`
+	Question       string `gorm:"not null"`
+	Answer         string `gorm:"not null"`
+	Remarks        string
+	QuestionImages []CardImage `gorm:"serializer:json;type:jsonb;not null;default:'[]'"`
+	AnswerImages   []CardImage `gorm:"serializer:json;type:jsonb;not null;default:'[]'"`
 }
 
 type CardSession struct {

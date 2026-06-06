@@ -97,6 +97,13 @@
           {:else if trainingState?.card}
             <div class="space-y-3">
               <RichMathText text={trainingState.card.question} class="text-2xl leading-tight font-semibold sm:text-3xl" />
+              {#if trainingState.card.questionImages.length > 0}
+                <div class="grid gap-3 sm:grid-cols-2">
+                  {#each trainingState.card.questionImages as image (image.id)}
+                    <img src={`data:${image.mimeType};base64,${image.dataBase64}`} alt="Изображение вопроса" class="max-h-72 w-full rounded-2xl border bg-background/60 object-contain" />
+                  {/each}
+                </div>
+              {/if}
               {#if trainingState.card.remarks}
                 <RichMathText text={trainingState.card.remarks} class="text-sm text-muted-foreground" />
               {/if}
@@ -106,6 +113,13 @@
               <p class="mb-2 text-sm font-medium text-muted-foreground">Ответ</p>
               {#if isAnswerVisible}
                 <RichMathText text={trainingState.card.answer} class="text-lg leading-relaxed" />
+                {#if trainingState.card.answerImages.length > 0}
+                  <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                    {#each trainingState.card.answerImages as image (image.id)}
+                      <img src={`data:${image.mimeType};base64,${image.dataBase64}`} alt="Изображение ответа" class="max-h-72 w-full rounded-2xl border bg-background/60 object-contain" />
+                    {/each}
+                  </div>
+                {/if}
               {:else}
                 <p class="text-lg text-muted-foreground">Нажми показать ответ или пробел.</p>
               {/if}

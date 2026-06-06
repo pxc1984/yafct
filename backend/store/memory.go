@@ -14,6 +14,7 @@ type MemoryStore struct {
 	adminPassword [32]byte
 	Synced        bool
 	cardSets      map[string]schema.CardSetResponse
+	images        map[string]schema.CardImage
 	sessions      map[string]memorySession
 }
 
@@ -47,6 +48,7 @@ func (s *MemoryStore) Init(password string) error {
 	defer s.mu.Unlock()
 	s.SetAdminPassword(password)
 	s.cardSets = make(map[string]schema.CardSetResponse)
+	s.images = make(map[string]schema.CardImage)
 	s.sessions = make(map[string]memorySession)
 	s.Synced = true
 	return nil
@@ -57,8 +59,20 @@ func (s *MemoryStore) ClearAll() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.cardSets = make(map[string]schema.CardSetResponse)
+	s.images = make(map[string]schema.CardImage)
 	s.sessions = make(map[string]memorySession)
 	return nil
+}
+
+func (s *MemoryStore) CreateUploadedImage(mimeType string, dataBase64 string, _ string) (*schema.CardImage, error) {
+	image := schema.CardImage{ID: uuid.NewString(), MimeType: mimeType, DataBase64: dataBase64}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.images[image.ID] = image
+
+	result := image
+	return &result, nil
 }
 
 func (s *MemoryStore) CreateCardSet(request schema.CreateCardSetRequest, _ string) (string, error) {
@@ -67,15 +81,34 @@ func (s *MemoryStore) CreateCardSet(request schema.CreateCardSetRequest, _ strin
 		return "", err
 	}
 
-	stored := make([]schema.Card, 0, len(request.Cards))
-	for _, card := range request.Cards {
-		stored = append(stored, schema.Card{ID: uuid.NewString(), CardData: card})
-	}
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	stored := make([]schema.Card, 0, len(request.Cards))
+	for _, card := range request.Cards {
+		if len(card.QuestionImages) > 5 || len(card.AnswerImages) > 5 {
+			return "", errors.New("each side of a card supports at most 5 images")
+		}
+		if err := s.validateImages(card.QuestionImages, card.AnswerImages); err != nil {
+			return "", err
+		}
+		stored = append(stored, schema.Card{ID: uuid.NewString(), CardData: card})
+	}
 	s.cardSets[setID] = schema.CardSetResponse{ID: setID, CardSetMetadata: request.CardSetMetadata, Cards: stored}
 	return setID, nil
+}
+
+func (s *MemoryStore) validateImages(questionImages []schema.CardImage, answerImages []schema.CardImage) error {
+	for _, image := range append(append([]schema.CardImage(nil), questionImages...), answerImages...) {
+		stored, ok := s.images[image.ID]
+		if !ok {
+			return errors.New("uploaded image not found")
+		}
+		if stored.MimeType != image.MimeType || stored.DataBase64 != image.DataBase64 {
+			return errors.New("uploaded image payload mismatch")
+		}
+	}
+	return nil
 }
 
 func (s *MemoryStore) GetCardSet(id string) (*schema.CardSetResponse, error) {

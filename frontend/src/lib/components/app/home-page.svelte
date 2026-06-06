@@ -1,9 +1,11 @@
 <script lang="ts">
   import Copy from '@lucide/svelte/icons/copy'
+  import ImagePlus from '@lucide/svelte/icons/image-plus'
   import Plus from '@lucide/svelte/icons/plus'
   import Trash2 from '@lucide/svelte/icons/trash-2'
+  import X from '@lucide/svelte/icons/x'
 
-  import type { CardData } from '$lib/api/flashcards'
+  import type { CardData, CardImage } from '$lib/api/flashcards'
 
   import { Button } from '$lib/components/ui/button'
   import * as Card from '$lib/components/ui/card'
@@ -15,10 +17,12 @@
     setDescription = $bindable(''),
     setAuthor = $bindable(''),
     parseCardData,
+    resolveImageById,
     isCreating,
     createError,
     copyState,
     onCopyPrompt,
+    onUploadImage,
     onCreateSet,
   }: {
     promptText: string
@@ -27,11 +31,13 @@
     setDescription: string
     setAuthor: string
     parseCardData: (input: string) => CardData[]
+    resolveImageById: (imageId: string) => CardImage | null
     isCreating: boolean
     createError: string
     copyState: 'idle' | 'done'
     onCopyPrompt: () => void | Promise<void>
-    onCreateSet: () => void | Promise<void>
+    onUploadImage: (file: File) => Promise<CardImage>
+    onCreateSet: (cards?: CardData[]) => void | Promise<void>
   } = $props()
 
   const sourcePlaceholder = `QUESTION:: Что такое closure?
@@ -48,12 +54,21 @@ REMARK:: `
   let syncedPreviewSourceText = ''
   let pendingDeleteIndex = $state<number | null>(null)
   let deleteConfirmationTimeout: ReturnType<typeof setTimeout> | null = null
+  let uploadError = $state('')
+  let uploadTarget = $state<{ index: number; field: 'questionImages' | 'answerImages' } | null>(null)
+  let fileInput: HTMLInputElement | null = null
 
   function formatCardData(cards: CardData[]) {
     return cards
       .map(
         (card) =>
-          `QUESTION:: ${card.question}\nANSWER:: ${card.answer}\nREMARK:: ${card.remarks}`,
+          [
+            `QUESTION:: ${card.question}`,
+            ...card.questionImages.map((image) => `QUESTION_IMAGE:: ${image.id}`),
+            `ANSWER:: ${card.answer}`,
+            ...card.answerImages.map((image) => `ANSWER_IMAGE:: ${image.id}`),
+            `REMARK:: ${card.remarks}`,
+          ].join('\n'),
       )
       .join('\n\n')
   }
@@ -68,6 +83,7 @@ REMARK:: `
     }
 
     syncedPreviewSourceText = sourceText
+    uploadError = ''
   }
 
   function clearPendingDelete() {
@@ -108,6 +124,8 @@ REMARK:: `
         question: `Новый вопрос ${nextCardNumber}`,
         answer: `Новый ответ ${nextCardNumber}`,
         remarks: '',
+        questionImages: [],
+        answerImages: [],
       },
     ]
 
@@ -135,6 +153,97 @@ REMARK:: `
       pendingDeleteIndex = null
       deleteConfirmationTimeout = null
     }, 4000)
+  }
+
+  function updateCardImages(index: number, field: 'questionImages' | 'answerImages', images: CardImage[]) {
+    previewCards = previewCards.map((card, cardIndex) =>
+      cardIndex === index ? { ...card, [field]: images } : card,
+    )
+
+    const nextSourceText = formatCardData(previewCards)
+    syncedPreviewSourceText = nextSourceText
+    sourceText = nextSourceText
+    previewError = ''
+  }
+
+  function openImagePicker(index: number, field: 'questionImages' | 'answerImages') {
+    uploadTarget = { index, field }
+    fileInput?.click()
+  }
+
+  async function uploadCardImage(index: number, field: 'questionImages' | 'answerImages', file: File) {
+    const card = previewCards[index]
+    if (!card) {
+      return
+    }
+
+    if (card[field].length >= 5) {
+      uploadError = 'К вопросу или ответу можно прикрепить не больше 5 изображений.'
+      return
+    }
+
+    uploadError = ''
+    const image = await onUploadImage(file)
+    updateCardImages(index, field, [...card[field], image])
+  }
+
+  function removeCardImage(index: number, field: 'questionImages' | 'answerImages', imageId: string) {
+    const card = previewCards[index]
+    if (!card) {
+      return
+    }
+
+    updateCardImages(index, field, card[field].filter((image) => image.id !== imageId))
+  }
+
+  async function handleFileInputChange(event: Event) {
+    const input = event.currentTarget as HTMLInputElement
+    const file = input.files?.[0]
+
+    if (!file || !uploadTarget) {
+      input.value = ''
+      return
+    }
+
+    try {
+      await uploadCardImage(uploadTarget.index, uploadTarget.field, file)
+    } catch (error) {
+      uploadError = error instanceof Error ? error.message : 'Не удалось загрузить изображение.'
+    } finally {
+      input.value = ''
+      uploadTarget = null
+    }
+  }
+
+  async function handlePasteImage(event: ClipboardEvent, index: number, field: 'questionImages' | 'answerImages') {
+    const file = Array.from(event.clipboardData?.items ?? [])
+      .find((item) => item.type.startsWith('image/'))
+      ?.getAsFile()
+
+    if (!file) {
+      return
+    }
+
+    event.preventDefault()
+
+    try {
+      await uploadCardImage(index, field, file)
+    } catch (error) {
+      uploadError = error instanceof Error ? error.message : 'Не удалось загрузить изображение.'
+    }
+  }
+
+  function ensureCardImages(cards: CardData[]) {
+    return cards.map((card) => ({
+      ...card,
+      questionImages: card.questionImages.map((image) => resolveImageById(image.id) ?? image),
+      answerImages: card.answerImages.map((image) => resolveImageById(image.id) ?? image),
+    }))
+  }
+
+  async function handleCreateSet() {
+    const cards = previewMode === 'list' ? previewCards : ensureCardImages(parseCardData(sourceText))
+    await onCreateSet(cards)
   }
 
   $effect(() => {
@@ -169,7 +278,8 @@ REMARK:: `
       </div>
 
       <div class="grid gap-4 lg:grid-cols-2 lg:items-stretch">
-        <div class="flex min-h-[28rem] flex-col gap-4">
+        <input bind:this={fileInput} type="file" accept="image/*" class="hidden" onchange={handleFileInputChange} />
+        <div class="flex min-h-[18rem] flex-col gap-4">
           <label class="space-y-2">
             <span class="text-sm font-medium">Название набора</span>
             <input
@@ -250,20 +360,58 @@ REMARK:: `
                       </Button>
                       <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Карточка {index + 1}</p>
                       <label class="flex flex-col gap-1">
-                        <span class="font-medium">Вопрос</span>
+                        <span class="flex items-center justify-between gap-3 font-medium">
+                          <span>Вопрос</span>
+                          <Button variant="ghost" size="sm" onclick={() => openImagePicker(index, 'questionImages')} disabled={card.questionImages.length >= 5}>
+                            <ImagePlus class="size-4" />
+                            Добавить изображение
+                          </Button>
+                        </span>
                         <textarea
                           value={card.question}
                           class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 h-15 overflow-auto resize-y rounded-xl border bg-transparent px-3 py-2 outline-none focus-visible:ring-3"
                           oninput={(event) => updateCardField(index, 'question', event.currentTarget.value)}
+                          onpaste={(event) => void handlePasteImage(event, index, 'questionImages')}
                         ></textarea>
+                        {#if card.questionImages.length > 0}
+                          <div class="grid gap-2 sm:grid-cols-2">
+                            {#each card.questionImages as image (image.id)}
+                              <div class="relative overflow-hidden rounded-xl border bg-background/80 p-2">
+                                <img src={`data:${image.mimeType};base64,${image.dataBase64}`} alt="Изображение вопроса" class="h-28 w-full rounded-lg object-cover" />
+                                <Button variant="outline" size="icon-xs" class="absolute top-3 right-3" onclick={() => removeCardImage(index, 'questionImages', image.id)} aria-label="Удалить изображение вопроса">
+                                  <X class="size-3" />
+                                </Button>
+                              </div>
+                            {/each}
+                          </div>
+                        {/if}
                       </label>
                       <label class="flex flex-col gap-1">
-                        <span class="font-medium">Ответ</span>
+                        <span class="flex items-center justify-between gap-3 font-medium">
+                          <span>Ответ</span>
+                          <Button variant="ghost" size="sm" onclick={() => openImagePicker(index, 'answerImages')} disabled={card.answerImages.length >= 5}>
+                            <ImagePlus class="size-4" />
+                            Добавить изображение
+                          </Button>
+                        </span>
                         <textarea
                           value={card.answer}
                           class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 h-15 overflow-auto resize-y rounded-xl border bg-transparent px-3 py-2 outline-none focus-visible:ring-3"
                           oninput={(event) => updateCardField(index, 'answer', event.currentTarget.value)}
+                          onpaste={(event) => void handlePasteImage(event, index, 'answerImages')}
                         ></textarea>
+                        {#if card.answerImages.length > 0}
+                          <div class="grid gap-2 sm:grid-cols-2">
+                            {#each card.answerImages as image (image.id)}
+                              <div class="relative overflow-hidden rounded-xl border bg-background/80 p-2">
+                                <img src={`data:${image.mimeType};base64,${image.dataBase64}`} alt="Изображение ответа" class="h-28 w-full rounded-lg object-cover" />
+                                <Button variant="outline" size="icon-xs" class="absolute top-3 right-3" onclick={() => removeCardImage(index, 'answerImages', image.id)} aria-label="Удалить изображение ответа">
+                                  <X class="size-3" />
+                                </Button>
+                              </div>
+                            {/each}
+                          </div>
+                        {/if}
                       </label>
                       <label class="flex flex-col gap-1">
                         <span class="font-medium">Ремарка</span>
@@ -286,12 +434,15 @@ REMARK:: `
       {#if createError}
         <p class="text-sm text-destructive">{createError}</p>
       {/if}
+      {#if uploadError}
+        <p class="text-sm text-destructive">{uploadError}</p>
+      {/if}
     </Card.Content>
     <Card.Footer class="justify-between gap-3 max-sm:flex-col max-sm:items-stretch">
       <p class="text-sm text-muted-foreground">
         {copyState === 'done' ? 'Промпт скопирован.' : ''}
       </p>
-      <Button size="lg" onclick={onCreateSet} disabled={isCreating || !sourceText.trim()}>
+      <Button size="lg" onclick={() => void handleCreateSet()} disabled={isCreating || !sourceText.trim()}>
         {isCreating ? 'Создание...' : 'Создать набор'}
       </Button>
     </Card.Footer>

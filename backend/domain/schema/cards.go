@@ -1,9 +1,17 @@
 package schema
 
 type CardData struct {
-	Question string `json:"question" binding:"required"`
-	Answer   string `json:"answer" binding:"required"`
-	Remarks  string `json:"remarks"`
+	Question       string      `json:"question" binding:"required"`
+	Answer         string      `json:"answer" binding:"required"`
+	Remarks        string      `json:"remarks"`
+	QuestionImages []CardImage `json:"questionImages"`
+	AnswerImages   []CardImage `json:"answerImages"`
+}
+
+type CardImage struct {
+	ID         string `json:"id" binding:"required,uuid"`
+	MimeType   string `json:"mimeType" binding:"required"`
+	DataBase64 string `json:"dataBase64" binding:"required"`
 }
 
 type CardSetMetadata struct {
@@ -30,6 +38,10 @@ type CardSetResponse struct {
 
 type CreateCardSetResponse struct {
 	ID string `json:"id"`
+}
+
+type UploadImageResponse struct {
+	Image CardImage `json:"image"`
 }
 
 type StartSessionResponse struct {

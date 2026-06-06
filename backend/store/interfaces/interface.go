@@ -29,6 +29,7 @@ type StoreBase interface {
 
 	SetAdminPassword(password string)
 	CheckPassword(password string) bool
+	CreateUploadedImage(mimeType string, dataBase64 string, createdByIP string) (*schema.CardImage, error)
 	CreateCardSet(request schema.CreateCardSetRequest, createdByIP string) (string, error)
 	GetCardSet(id string) (*schema.CardSetResponse, error)
 	CreateSession(cardSetID string, createdByIP string) (string, error)
