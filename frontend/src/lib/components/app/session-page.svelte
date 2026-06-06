@@ -1,0 +1,188 @@
+<script lang="ts">
+  import GripHorizontal from '@lucide/svelte/icons/grip-horizontal'
+  import Keyboard from '@lucide/svelte/icons/keyboard'
+  import RotateCcw from '@lucide/svelte/icons/rotate-ccw'
+
+  import type { SessionState } from '$lib/api/flashcards'
+  import RichMathText from '$lib/components/rich-math-text.svelte'
+  import { Badge } from '$lib/components/ui/badge'
+  import { Button } from '$lib/components/ui/button'
+  import * as Card from '$lib/components/ui/card'
+
+  let {
+    cardsetId,
+    trainingState,
+    trainingLoading,
+    trainingError,
+    isAnswerVisible,
+    isDragging,
+    dragOffset,
+    progressValue,
+    isMobile,
+    showSwipeHint,
+    onNavigate,
+    onToggleAnswer,
+    onMarkKnown,
+    onMarkUnknown,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+  }: {
+    cardsetId: string
+    trainingState: SessionState | null
+    trainingLoading: boolean
+    trainingError: string
+    isAnswerVisible: boolean
+    isDragging: boolean
+    dragOffset: number
+    progressValue: number
+    isMobile: boolean
+    showSwipeHint: boolean
+    onNavigate: (path: string) => void
+    onToggleAnswer: () => void
+    onMarkKnown: () => void | Promise<void>
+    onMarkUnknown: () => void | Promise<void>
+    onPointerDown: (event: PointerEvent) => void
+    onPointerMove: (event: PointerEvent) => void
+    onPointerUp: () => void | Promise<void>
+  } = $props()
+</script>
+
+<section class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 overflow-x-hidden pb-28 sm:pb-8">
+  <div class="flex items-center justify-between gap-3">
+    <div>
+      <p class="text-sm text-muted-foreground">{trainingState?.author ? `Автор: ${trainingState.author}` : `Набор ${cardsetId}`}</p>
+      <h1 class="text-2xl font-semibold">{trainingState?.title || 'Тренировка'}</h1>
+    </div>
+    <Button variant="outline" onclick={() => onNavigate(`/${cardsetId}`)}>К сессиям</Button>
+  </div>
+
+  {#if trainingState?.description}
+    <Card.Root>
+      <Card.Content class="pt-6">
+        <div class="max-h-[7.5rem] overflow-auto whitespace-pre-wrap rounded-2xl border bg-background/60 p-4 text-sm text-muted-foreground">
+          {trainingState.description}
+        </div>
+      </Card.Content>
+    </Card.Root>
+  {/if}
+
+  <Card.Root>
+    <Card.Content class="space-y-3 pt-6">
+      <div class="flex items-center justify-between text-sm text-muted-foreground">
+        <span>Прогресс</span>
+        <span>{trainingState?.passed ?? 0} / {trainingState?.total ?? 0}</span>
+      </div>
+      <div class="h-3 overflow-hidden rounded-full bg-muted">
+        <div class="h-full rounded-full bg-emerald-500 transition-all" style={`width: ${progressValue}%`}></div>
+      </div>
+    </Card.Content>
+  </Card.Root>
+
+  <div class="grid gap-4 md:grid-cols-[1fr_220px]">
+    <Card.Root
+      class={`overflow-hidden transition-transform ${isDragging ? '' : 'duration-200'}`}
+      style={`transform: translateX(${dragOffset}px) rotate(${dragOffset / 30}deg);`}
+      data-dragging={isDragging}
+      data-swipe-card
+      onpointerdown={onPointerDown}
+      onpointermove={onPointerMove}
+      onpointerup={onPointerUp}
+      onpointercancel={onPointerUp}
+    >
+      <div class="h-full">
+        <Card.Header>
+          <div class="flex items-center justify-between gap-3">
+            <Badge variant="secondary">Вопрос</Badge>
+            <Badge variant={dragOffset > 50 ? 'secondary' : dragOffset < -50 ? 'destructive' : 'outline'}>
+              {dragOffset > 50 ? 'Знаю' : dragOffset < -50 ? 'Пока не знаю' : 'Смахни карточку'}
+            </Badge>
+          </div>
+        </Card.Header>
+        <Card.Content class="space-y-6">
+          {#if trainingLoading && !trainingState}
+            <p class="text-muted-foreground">Загрузка...</p>
+          {:else if trainingError}
+            <p class="text-destructive">{trainingError}</p>
+          {:else if trainingState?.card}
+            <div class="space-y-3">
+              <RichMathText text={trainingState.card.question} class="text-2xl leading-tight font-semibold sm:text-3xl" />
+              {#if trainingState.card.remarks}
+                <RichMathText text={trainingState.card.remarks} class="text-sm text-muted-foreground" />
+              {/if}
+            </div>
+
+            <div class="rounded-2xl border bg-background/60 p-4">
+              <p class="mb-2 text-sm font-medium text-muted-foreground">Ответ</p>
+              {#if isAnswerVisible}
+                <RichMathText text={trainingState.card.answer} class="text-lg leading-relaxed" />
+              {:else}
+                <p class="text-lg text-muted-foreground">Нажми показать ответ или пробел.</p>
+              {/if}
+            </div>
+          {:else}
+            <div class="space-y-3 py-8 text-center">
+              <p class="text-2xl font-semibold">Сессия завершена</p>
+              <p class="text-muted-foreground">Все карточки из этой очереди пройдены.</p>
+              <Button variant="outline" class="mx-auto gap-2" onclick={() => onNavigate(`/${cardsetId}`)}>
+                <RotateCcw class="size-4" />
+                Вернуться к сессиям
+              </Button>
+            </div>
+          {/if}
+        </Card.Content>
+      </div>
+    </Card.Root>
+
+    <Card.Root class="max-md:hidden">
+      <Card.Header>
+        <div class="flex items-center gap-2">
+          <Keyboard class="size-4 text-muted-foreground" />
+          <Card.Title>Клавиши</Card.Title>
+        </div>
+      </Card.Header>
+      <Card.Content class="space-y-3 text-sm">
+        <div class="flex items-center justify-between rounded-xl border px-3 py-2">
+          <span>Показать ответ</span>
+          <kbd class="rounded-md bg-muted px-2 py-1 text-xs">Space</kbd>
+        </div>
+        <div class="flex items-center justify-between rounded-xl border px-3 py-2">
+          <span>Знаю</span>
+          <kbd class="rounded-md bg-muted px-2 py-1 text-xs">Y</kbd>
+        </div>
+        <div class="flex items-center justify-between rounded-xl border px-3 py-2">
+          <span>Пока не знаю</span>
+          <kbd class="rounded-md bg-muted px-2 py-1 text-xs">N</kbd>
+        </div>
+      </Card.Content>
+    </Card.Root>
+  </div>
+
+  {#if trainingState?.card}
+    <div class="flex gap-3 max-md:hidden">
+      <Button variant="outline" class="flex-1" onclick={onToggleAnswer}>Показать / скрыть ответ</Button>
+      <Button variant="destructive" class="flex-1" onclick={onMarkUnknown} disabled={trainingLoading}>
+        Пока не знаю
+      </Button>
+      <Button class="flex-1" onclick={onMarkKnown} disabled={trainingLoading}>Знаю</Button>
+    </div>
+  {/if}
+
+  {#if trainingState?.card && isMobile && showSwipeHint}
+    <div class="fixed inset-x-0 bottom-0 border-t bg-background/95 p-4 backdrop-blur">
+      <div class="mx-auto flex max-w-4xl items-center gap-3">
+        <Button variant="outline" class="flex-1" onclick={onToggleAnswer}>Показать / скрыть ответ</Button>
+        <Badge variant="secondary" class="gap-1 px-3 py-2 text-xs">
+          <GripHorizontal class="size-3.5" />
+          вправо знаю, влево не знаю
+        </Badge>
+      </div>
+    </div>
+  {:else if trainingState?.card && isMobile}
+    <div class="fixed inset-x-0 bottom-0 border-t bg-background/95 p-4 backdrop-blur">
+      <div class="mx-auto flex max-w-4xl items-center gap-3">
+        <Button variant="outline" class="flex-1" onclick={onToggleAnswer}>Показать / скрыть ответ</Button>
+      </div>
+    </div>
+  {/if}
+</section>

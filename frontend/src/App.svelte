@@ -1,14 +1,4 @@
 <script lang="ts">
-  import Check from '@lucide/svelte/icons/check'
-  import ChevronRight from '@lucide/svelte/icons/chevron-right'
-  import Copy from '@lucide/svelte/icons/copy'
-  import GripHorizontal from '@lucide/svelte/icons/grip-horizontal'
-  import Keyboard from '@lucide/svelte/icons/keyboard'
-  import Plus from '@lucide/svelte/icons/plus'
-  import Play from '@lucide/svelte/icons/play'
-  import RotateCcw from '@lucide/svelte/icons/rotate-ccw'
-  import Trash2 from '@lucide/svelte/icons/trash-2'
-
   import promptTemplate from '../prompt.txt?raw'
   import {
     createCardSet,
@@ -22,10 +12,9 @@
     type CreateCardSetRequest,
     type SessionState,
   } from '$lib/api/flashcards'
-  import RichMathText from '$lib/components/rich-math-text.svelte'
-  import { Badge } from '$lib/components/ui/badge'
-  import { Button } from '$lib/components/ui/button'
-  import * as Card from '$lib/components/ui/card'
+  import HomePage from '$lib/components/app/home-page.svelte'
+  import CardsetPage from '$lib/components/app/cardset-page.svelte'
+  import SessionPage from '$lib/components/app/session-page.svelte'
 
   type SessionRecord = {
     id: string
@@ -469,315 +458,56 @@
 <main class="min-h-screen bg-background text-foreground">
   <div class="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-6 sm:px-6 sm:py-8">
     {#if route.name === 'home'}
-      <section class="mx-auto flex w-full flex-1 items-center">
-        <Card.Root class="border-border/70 bg-card/85 shadow-sm backdrop-blur">
-          <Card.Header class="gap-4">
-            <div class="space-y-2">
-              <Card.Title class="text-3xl sm:text-4xl">Тренировка по карточкам</Card.Title>
-              <Card.Description>
-                Если лень писать самостоятельно карточки можешь воспользоваться вот этим системным промптом.
-              </Card.Description>
-            </div>
-          </Card.Header>
-          <Card.Content class="space-y-4">
-            <div class="relative rounded-2xl border bg-background/70 p-4 pr-16">
-              <Button
-                variant="outline"
-                size="icon-sm"
-                class="absolute top-3 right-3"
-                onclick={copyPrompt}
-                aria-label="Скопировать промпт"
-              >
-                <Copy class="size-4" />
-              </Button>
-              <pre class="max-h-[4.75rem] overflow-auto whitespace-pre-wrap text-sm text-muted-foreground">{promptText}</pre>
-            </div>
-
-            <div class="grid gap-4 lg:grid-cols-2 lg:items-stretch">
-              <div class="flex min-h-[28rem] flex-col gap-4">
-                <label class="space-y-2">
-                  <span class="text-sm font-medium">Название набора</span>
-                  <input
-                    bind:value={setTitle}
-                    maxlength="120"
-                    class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 h-12 w-full rounded-2xl border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3"
-                    placeholder="Математический анализ к коллоквиуму"
-                  />
-                </label>
-
-                <label class="flex flex-1 flex-col gap-2">
-                  <span class="text-sm font-medium">Описание</span>
-                  <textarea
-                    bind:value={setDescription}
-                    class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-0 flex-1 resize-none overflow-auto rounded-2xl border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3"
-                    placeholder="Сделано без любви и с помощью ллм, зато работает."
-                  ></textarea>
-                </label>
-
-                <label class="space-y-2">
-                  <span class="text-sm font-medium">Имя автора</span>
-                  <input
-                    bind:value={setAuthor}
-                    class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 h-12 w-full rounded-2xl border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3"
-                    placeholder="Игорь <@igamamaev>"
-                  />
-                </label>
-              </div>
-
-              <label class="flex min-h-[28rem] flex-col gap-2">
-                <span class="text-sm font-medium">Текст с карточками</span>
-                <textarea
-                  bind:value={sourceText}
-                  class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-0 flex-1 resize-none overflow-auto rounded-2xl border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3"
-                  placeholder= {`QUESTION:: Что такое closure?
-ANSWER:: Функция вместе с лексическим окружением.
-REMARK:: Удобно для инкапсуляции состояния.
-
-QUESTION:: Что возвращает выражение $2^3$?
-ANSWER:: $8$
-REMARK:: `}
-                ></textarea>
-              </label>
-            </div>
-
-            {#if createError}
-              <p class="text-sm text-destructive">{createError}</p>
-            {/if}
-          </Card.Content>
-          <Card.Footer class="justify-between gap-3 max-sm:flex-col max-sm:items-stretch">
-            <p class="text-sm text-muted-foreground">
-              {copyState === 'done' ? 'Промпт скопирован.' : ''}
-            </p>
-            <Button size="lg" onclick={createSet} disabled={isCreating || !sourceText.trim()}>
-              {isCreating ? 'Создание...' : 'Создать набор'}
-            </Button>
-          </Card.Footer>
-        </Card.Root>
-      </section>
+      <HomePage
+        promptText={promptText}
+        bind:sourceText
+        bind:setTitle
+        bind:setDescription
+        bind:setAuthor
+        isCreating={isCreating}
+        createError={createError}
+        copyState={copyState}
+        onCopyPrompt={copyPrompt}
+        onCreateSet={createSet}
+      />
     {/if}
 
     {#if route.name === 'cardset'}
-      <section class="mx-auto flex w-full max-w-4xl flex-1 items-center">
-        <div class="grid w-full gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-          <Card.Root>
-            <Card.Header>
-              <Badge variant="outline" class="w-fit">Набор</Badge>
-              <Card.Title class="break-words text-2xl">{cardSetDetails?.title || route.cardsetId}</Card.Title>
-              {#if cardSetDetails?.author}
-                <Card.Description>Автор: {cardSetDetails.author}</Card.Description>
-              {/if}
-            </Card.Header>
-            <Card.Content class="space-y-4">
-              {#if cardSetLoading}
-                <div class="rounded-2xl border bg-background/60 p-4 text-sm text-muted-foreground">Загрузка описания...</div>
-              {:else if cardSetError}
-                <p class="text-sm text-destructive">{cardSetError}</p>
-              {:else if cardSetDetails?.description}
-                <div class="max-h-[7.5rem] overflow-auto rounded-2xl border bg-background/60 p-4 text-sm text-muted-foreground whitespace-pre-wrap">
-                  {cardSetDetails.description}
-                </div>
-              {/if}
-
-              <Button size="lg" class="w-full gap-2" onclick={() => createSession(activeCardsetId)} disabled={sessionsLoading}>
-                <Play class="size-4" />
-                {sessionsLoading ? 'Создание...' : 'Начать новую сессию'}
-              </Button>
-              {#if sessionListError}
-                <p class="mt-3 text-sm text-destructive">{sessionListError}</p>
-              {/if}
-            </Card.Content>
-          </Card.Root>
-
-          <Card.Root>
-            <Card.Header>
-              <Card.Title>Продолжить</Card.Title>
-            </Card.Header>
-            <Card.Content class="space-y-3">
-              {#if sessions.length === 0}
-                <p class="text-sm text-muted-foreground">Пока нет начатых сессий для этого набора.</p>
-              {/if}
-
-              {#each sessions as session}
-                <div class="flex items-center gap-2 rounded-2xl border bg-background/60 px-2 py-2 transition hover:bg-muted/60">
-                  <button
-                    class="flex min-w-0 flex-1 items-center justify-between px-2 py-1 text-left"
-                    onclick={() => navigate(`/${activeCardsetId}/${session.id}`)}
-                  >
-                    <div class="min-w-0">
-                      <p class="truncate font-medium">Сессия {session.id}</p>
-                      <p class="text-sm text-muted-foreground">Обновлена {formatDate(session.updatedAt)}</p>
-                    </div>
-                    <ChevronRight class="size-4 shrink-0 text-muted-foreground" />
-                  </button>
-
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Удалить сессию"
-                    onclick={(event) => {
-                      event.stopPropagation()
-                      removeSession(activeCardsetId, session.id)
-                    }}
-                  >
-                    <Trash2 class="size-4" />
-                  </Button>
-                </div>
-              {/each}
-            </Card.Content>
-          </Card.Root>
-        </div>
-
-        <Button
-          size="icon-lg"
-          class="fixed right-4 bottom-4 z-20 rounded-full shadow-lg sm:right-6 sm:bottom-6"
-          onclick={() => navigate('/')}
-          aria-label="Создать новый набор карточек"
-        >
-          <Plus class="size-5" />
-        </Button>
-      </section>
+      <CardsetPage
+        cardsetId={route.cardsetId}
+        cardSetDetails={cardSetDetails}
+        cardSetLoading={cardSetLoading}
+        cardSetError={cardSetError}
+        sessions={sessions}
+        sessionListError={sessionListError}
+        sessionsLoading={sessionsLoading}
+        onCreateSession={() => createSession(activeCardsetId)}
+        onNavigate={navigate}
+        onRemoveSession={(sessionId) => removeSession(activeCardsetId, sessionId)}
+        {formatDate}
+      />
     {/if}
 
     {#if route.name === 'session'}
-      <section class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 overflow-x-hidden pb-28 sm:pb-8">
-        <div class="flex items-center justify-between gap-3">
-          <div>
-            <p class="text-sm text-muted-foreground">{trainingState?.author ? `Автор: ${trainingState.author}` : `Набор ${route.cardsetId}`}</p>
-            <h1 class="text-2xl font-semibold">{trainingState?.title || 'Тренировка'}</h1>
-          </div>
-          <Button variant="outline" onclick={() => navigate(`/${activeCardsetId}`)}>К сессиям</Button>
-        </div>
-
-        {#if trainingState?.description}
-          <Card.Root>
-            <Card.Content class="pt-6">
-              <div class="max-h-[7.5rem] overflow-auto whitespace-pre-wrap rounded-2xl border bg-background/60 p-4 text-sm text-muted-foreground">
-                {trainingState.description}
-              </div>
-            </Card.Content>
-          </Card.Root>
-        {/if}
-
-        <Card.Root>
-          <Card.Content class="space-y-3 pt-6">
-            <div class="flex items-center justify-between text-sm text-muted-foreground">
-              <span>Прогресс</span>
-              <span>{trainingState?.passed ?? 0} / {trainingState?.total ?? 0}</span>
-            </div>
-            <div class="h-3 overflow-hidden rounded-full bg-muted">
-              <div class="h-full rounded-full bg-emerald-500 transition-all" style={`width: ${progressValue}%`}></div>
-            </div>
-          </Card.Content>
-        </Card.Root>
-
-        <div class="grid gap-4 md:grid-cols-[1fr_220px]">
-          <Card.Root
-            class={`overflow-hidden transition-transform ${isDragging ? '' : 'duration-200'}`}
-            style={`transform: translateX(${dragOffset}px) rotate(${dragOffset / 30}deg);`}
-            data-dragging={isDragging}
-            data-swipe-card
-            onpointerdown={handlePointerDown}
-            onpointermove={handlePointerMove}
-            onpointerup={handlePointerUp}
-            onpointercancel={handlePointerUp}
-          >
-            <div class="h-full">
-              <Card.Header>
-                <div class="flex items-center justify-between gap-3">
-                  <Badge variant="secondary">Вопрос</Badge>
-                  <Badge variant={dragOffset > 50 ? 'secondary' : dragOffset < -50 ? 'destructive' : 'outline'}>
-                    {dragOffset > 50 ? 'Знаю' : dragOffset < -50 ? 'Пока не знаю' : 'Смахни карточку'}
-                  </Badge>
-                </div>
-              </Card.Header>
-              <Card.Content class="space-y-6">
-                {#if trainingLoading && !trainingState}
-                  <p class="text-muted-foreground">Загрузка...</p>
-                {:else if trainingError}
-                  <p class="text-destructive">{trainingError}</p>
-                {:else if trainingState?.card}
-                  <div class="space-y-3">
-                    <RichMathText text={trainingState.card.question} class="text-2xl leading-tight font-semibold sm:text-3xl" />
-                    {#if trainingState.card.remarks}
-                      <RichMathText text={trainingState.card.remarks} class="text-sm text-muted-foreground" />
-                    {/if}
-                  </div>
-
-                  <div class="rounded-2xl border bg-background/60 p-4">
-                    <p class="mb-2 text-sm font-medium text-muted-foreground">Ответ</p>
-                    {#if isAnswerVisible}
-                      <RichMathText text={trainingState.card.answer} class="text-lg leading-relaxed" />
-                    {:else}
-                      <p class="text-lg text-muted-foreground">Нажми показать ответ или пробел.</p>
-                    {/if}
-                  </div>
-                {:else}
-                  <div class="space-y-3 py-8 text-center">
-                    <p class="text-2xl font-semibold">Сессия завершена</p>
-                    <p class="text-muted-foreground">Все карточки из этой очереди пройдены.</p>
-                    <Button variant="outline" class="mx-auto gap-2" onclick={() => navigate(`/${activeCardsetId}`)}>
-                      <RotateCcw class="size-4" />
-                      Вернуться к сессиям
-                    </Button>
-                  </div>
-                {/if}
-              </Card.Content>
-            </div>
-          </Card.Root>
-
-          <Card.Root class="max-md:hidden">
-            <Card.Header>
-              <div class="flex items-center gap-2">
-                <Keyboard class="size-4 text-muted-foreground" />
-                <Card.Title>Клавиши</Card.Title>
-              </div>
-            </Card.Header>
-            <Card.Content class="space-y-3 text-sm">
-              <div class="flex items-center justify-between rounded-xl border px-3 py-2">
-                <span>Показать ответ</span>
-                <kbd class="rounded-md bg-muted px-2 py-1 text-xs">Space</kbd>
-              </div>
-              <div class="flex items-center justify-between rounded-xl border px-3 py-2">
-                <span>Знаю</span>
-                <kbd class="rounded-md bg-muted px-2 py-1 text-xs">Y</kbd>
-              </div>
-              <div class="flex items-center justify-between rounded-xl border px-3 py-2">
-                <span>Пока не знаю</span>
-                <kbd class="rounded-md bg-muted px-2 py-1 text-xs">N</kbd>
-              </div>
-            </Card.Content>
-          </Card.Root>
-        </div>
-
-        {#if trainingState?.card}
-          <div class="flex gap-3 max-md:hidden">
-            <Button variant="outline" class="flex-1" onclick={toggleAnswer}>Показать / скрыть ответ</Button>
-            <Button variant="destructive" class="flex-1" onclick={() => void markUnknown()} disabled={trainingLoading}>
-              Пока не знаю
-            </Button>
-            <Button class="flex-1" onclick={() => void markKnown()} disabled={trainingLoading}>Знаю</Button>
-          </div>
-        {/if}
-
-        {#if trainingState?.card && isMobile && showSwipeHint}
-          <div class="fixed inset-x-0 bottom-0 border-t bg-background/95 p-4 backdrop-blur">
-            <div class="mx-auto flex max-w-4xl items-center gap-3">
-              <Button variant="outline" class="flex-1" onclick={toggleAnswer}>Показать / скрыть ответ</Button>
-              <Badge variant="secondary" class="gap-1 px-3 py-2 text-xs">
-                <GripHorizontal class="size-3.5" />
-                вправо знаю, влево не знаю
-              </Badge>
-            </div>
-          </div>
-        {:else if trainingState?.card && isMobile}
-          <div class="fixed inset-x-0 bottom-0 border-t bg-background/95 p-4 backdrop-blur">
-            <div class="mx-auto flex max-w-4xl items-center gap-3">
-              <Button variant="outline" class="flex-1" onclick={toggleAnswer}>Показать / скрыть ответ</Button>
-            </div>
-          </div>
-        {/if}
-
-      </section>
+      <SessionPage
+        cardsetId={route.cardsetId}
+        {trainingState}
+        {trainingLoading}
+        {trainingError}
+        {isAnswerVisible}
+        {isDragging}
+        {dragOffset}
+        {progressValue}
+        {isMobile}
+        {showSwipeHint}
+        onNavigate={navigate}
+        onToggleAnswer={toggleAnswer}
+        onMarkKnown={() => void markKnown()}
+        onMarkUnknown={() => void markUnknown()}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={() => void handlePointerUp()}
+      />
     {/if}
   </div>
 </main>
