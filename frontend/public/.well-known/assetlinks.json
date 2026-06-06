@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.yafct.app",
+      "sha256_cert_fingerprints": [
+        "69:25:56:E0:38:0E:20:F3:EB:A4:5F:0B:85:3D:75:F0:04:EA:82:31:73:A1:FB:DB:52:C2:53:C2:78:F0:15:90"
+      ]
+    }
+  }
+]

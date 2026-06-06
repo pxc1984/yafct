@@ -274,7 +274,7 @@ REMARK:: `
         >
           <Copy class="size-4" />
         </Button>
-        <pre class="max-h-[4.75rem] overflow-auto whitespace-pre-wrap text-sm text-muted-foreground">{promptText}</pre>
+        <pre class="max-h-5 overflow-auto whitespace-pre-wrap text-sm text-muted-foreground">{promptText}</pre>
       </div>
 
       <div class="grid gap-4 lg:grid-cols-2 lg:items-stretch">
@@ -314,9 +314,8 @@ REMARK:: `
             <span class="text-sm font-medium">Текст с карточками</span>
             <div class="flex items-center gap-2">
               {#if previewMode === 'list'}
-                <Button variant="outline" size="sm" onclick={addPreviewCard}>
+                <Button variant="outline" size="sm" onclick={addPreviewCard} aria-label="Добавить карточку">
                   <Plus class="size-4" />
-                  Добавить карточку
                 </Button>
               {/if}
               <Button
@@ -352,7 +351,7 @@ REMARK:: `
                       <Button
                         variant={pendingDeleteIndex === index ? 'destructive' : 'outline'}
                         size="icon-sm"
-                        class="absolute top-3 right-3"
+                        class="absolute top-2 right-3"
                         onclick={() => requestDeleteCard(index)}
                         aria-label={pendingDeleteIndex === index ? 'Подтвердить удаление карточки' : 'Удалить карточку'}
                       >
@@ -362,9 +361,8 @@ REMARK:: `
                       <label class="flex flex-col gap-1">
                         <span class="flex items-center justify-between gap-3 font-medium">
                           <span>Вопрос</span>
-                          <Button variant="ghost" size="sm" onclick={() => openImagePicker(index, 'questionImages')} disabled={card.questionImages.length >= 5}>
+                          <Button variant="outline" size="sm" onclick={() => openImagePicker(index, 'questionImages')} disabled={card.questionImages.length >= 5} aria-label="Добавить изображение">
                             <ImagePlus class="size-4" />
-                            Добавить изображение
                           </Button>
                         </span>
                         <textarea
@@ -389,9 +387,8 @@ REMARK:: `
                       <label class="flex flex-col gap-1">
                         <span class="flex items-center justify-between gap-3 font-medium">
                           <span>Ответ</span>
-                          <Button variant="ghost" size="sm" onclick={() => openImagePicker(index, 'answerImages')} disabled={card.answerImages.length >= 5}>
+                          <Button variant="outline" size="sm" onclick={() => openImagePicker(index, 'answerImages')} disabled={card.answerImages.length >= 5} aria-label="Добавить изображение">
                             <ImagePlus class="size-4" />
-                            Добавить изображение
                           </Button>
                         </span>
                         <textarea

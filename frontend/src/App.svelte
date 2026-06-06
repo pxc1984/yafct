@@ -180,29 +180,31 @@
       const questionImages: CardImage[] = []
       const answerImages: CardImage[] = []
 
+      const readFieldValue = (line: string, prefix: string) => line.slice(prefix.length).trim()
+
       for (const line of lines) {
-        if (line.startsWith('QUESTION:: ')) {
-          question = line.slice('QUESTION:: '.length).trim()
+        if (line.startsWith('QUESTION::')) {
+          question = readFieldValue(line, 'QUESTION::')
           continue
         }
 
-        if (line.startsWith('ANSWER:: ')) {
-          answer = line.slice('ANSWER:: '.length).trim()
+        if (line.startsWith('ANSWER::')) {
+          answer = readFieldValue(line, 'ANSWER::')
           continue
         }
 
-        if (line.startsWith('REMARK:: ')) {
-          remarks = line.slice('REMARK:: '.length).trim()
+        if (line.startsWith('REMARK::')) {
+          remarks = readFieldValue(line, 'REMARK::')
           continue
         }
 
-        if (line.startsWith('QUESTION_IMAGE:: ')) {
-          questionImages.push(resolveUploadedImage(line.slice('QUESTION_IMAGE:: '.length).trim(), index + 1))
+        if (line.startsWith('QUESTION_IMAGE::')) {
+          questionImages.push(resolveUploadedImage(readFieldValue(line, 'QUESTION_IMAGE::'), index + 1))
           continue
         }
 
-        if (line.startsWith('ANSWER_IMAGE:: ')) {
-          answerImages.push(resolveUploadedImage(line.slice('ANSWER_IMAGE:: '.length).trim(), index + 1))
+        if (line.startsWith('ANSWER_IMAGE::')) {
+          answerImages.push(resolveUploadedImage(readFieldValue(line, 'ANSWER_IMAGE::'), index + 1))
           continue
         }
 

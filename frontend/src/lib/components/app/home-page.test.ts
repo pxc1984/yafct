@@ -28,29 +28,31 @@ function parseCardData(input: string) {
     const questionImages: CardImage[] = []
     const answerImages: CardImage[] = []
 
+    const readFieldValue = (line: string, prefix: string) => line.slice(prefix.length).trim()
+
     for (const line of lines) {
-      if (line.startsWith('QUESTION:: ')) {
-        question = line.slice('QUESTION:: '.length).trim()
+      if (line.startsWith('QUESTION::')) {
+        question = readFieldValue(line, 'QUESTION::')
         continue
       }
 
-      if (line.startsWith('ANSWER:: ')) {
-        answer = line.slice('ANSWER:: '.length).trim()
+      if (line.startsWith('ANSWER::')) {
+        answer = readFieldValue(line, 'ANSWER::')
         continue
       }
 
-      if (line.startsWith('REMARK:: ')) {
-        remarks = line.slice('REMARK:: '.length).trim()
+      if (line.startsWith('REMARK::')) {
+        remarks = readFieldValue(line, 'REMARK::')
         continue
       }
 
-      if (line.startsWith('QUESTION_IMAGE:: ')) {
-        questionImages.push({ id: line.slice('QUESTION_IMAGE:: '.length).trim(), mimeType: 'image/png', dataBase64: 'aGVsbG8=' })
+      if (line.startsWith('QUESTION_IMAGE::')) {
+        questionImages.push({ id: readFieldValue(line, 'QUESTION_IMAGE::'), mimeType: 'image/png', dataBase64: 'aGVsbG8=' })
         continue
       }
 
-      if (line.startsWith('ANSWER_IMAGE:: ')) {
-        answerImages.push({ id: line.slice('ANSWER_IMAGE:: '.length).trim(), mimeType: 'image/png', dataBase64: 'aGVsbG8=' })
+      if (line.startsWith('ANSWER_IMAGE::')) {
+        answerImages.push({ id: readFieldValue(line, 'ANSWER_IMAGE::'), mimeType: 'image/png', dataBase64: 'aGVsbG8=' })
         continue
       }
 
@@ -134,6 +136,10 @@ describe('HomePage cards list preview', () => {
     expect(screen.getByTestId('preview-card-2')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Новый вопрос 3')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Новый ответ 3')).toBeInTheDocument()
+  })
+
+  it('parses generated cards back when remark is empty', () => {
+    expect(() => parseCardData('QUESTION:: Новый вопрос 1\nANSWER:: Новый ответ 1\nREMARK:: ')).not.toThrow()
   })
 
   it('deletes a card only after second click within 4 seconds', async () => {
