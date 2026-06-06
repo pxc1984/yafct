@@ -7,15 +7,6 @@
 
   let { text = '', class: className = '' }: { text?: string; class?: string } = $props()
 
-  function escapeHtml(value: string) {
-    return value
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;')
-  }
-
   function pushText(segments: Segment[], value: string) {
     if (value) {
       segments.push({ type: 'text', value })
@@ -78,10 +69,11 @@
 </script>
 
 <div class={`math-content whitespace-pre-wrap ${className}`.trim()}>
-  {#each segments as segment}
+  {#each segments as segment, index (index)}
     {#if segment.type === 'text'}
-      {@html escapeHtml(segment.value).replaceAll('\n', '<br />')}
+      {segment.value}
     {:else}
+      <!-- eslint-disable-next-line svelte/no-at-html-tags -->
       {@html katex.renderToString(segment.value, {
         throwOnError: false,
         displayMode: segment.displayMode,

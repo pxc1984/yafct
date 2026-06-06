@@ -464,6 +464,7 @@
         bind:setTitle
         bind:setDescription
         bind:setAuthor
+        {parseCardData}
         isCreating={isCreating}
         createError={createError}
         copyState={copyState}

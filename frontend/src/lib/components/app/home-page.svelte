@@ -1,6 +1,8 @@
 <script lang="ts">
   import Copy from '@lucide/svelte/icons/copy'
 
+  import type { CardData } from '$lib/api/flashcards'
+
   import { Button } from '$lib/components/ui/button'
   import * as Card from '$lib/components/ui/card'
 
@@ -10,6 +12,7 @@
     setTitle = $bindable(''),
     setDescription = $bindable(''),
     setAuthor = $bindable(''),
+    parseCardData,
     isCreating,
     createError,
     copyState,
@@ -21,6 +24,7 @@
     setTitle: string
     setDescription: string
     setAuthor: string
+    parseCardData: (input: string) => CardData[]
     isCreating: boolean
     createError: string
     copyState: 'idle' | 'done'
@@ -35,6 +39,57 @@ REMARK:: Удобно для инкапсуляции состояния.
 QUESTION:: Что возвращает выражение $2^3$?
 ANSWER:: $8$
 REMARK:: `
+
+  let previewMode = $state<'text' | 'list'>('text')
+  let previewCards = $state<CardData[]>([])
+  let previewError = $state('')
+  let syncedPreviewSourceText = ''
+
+  function formatCardData(cards: CardData[]) {
+    return cards
+      .map(
+        (card) =>
+          `QUESTION:: ${card.question}\nANSWER:: ${card.answer}\nREMARK:: ${card.remarks}`,
+      )
+      .join('\n\n')
+  }
+
+  function syncPreviewFromSource() {
+    try {
+      previewCards = parseCardData(sourceText)
+      previewError = ''
+    } catch (error) {
+      previewCards = []
+      previewError = error instanceof Error ? error.message : 'Не удалось разобрать карточки.'
+    }
+
+    syncedPreviewSourceText = sourceText
+  }
+
+  function setPreviewMode(mode: 'text' | 'list') {
+    previewMode = mode
+
+    if (mode === 'list' && syncedPreviewSourceText !== sourceText) {
+      syncPreviewFromSource()
+    }
+  }
+
+  function updateCardField(index: number, field: keyof CardData, value: string) {
+    previewCards = previewCards.map((card, cardIndex) =>
+      cardIndex === index ? { ...card, [field]: value } : card,
+    )
+
+    const nextSourceText = formatCardData(previewCards)
+    syncedPreviewSourceText = nextSourceText
+    sourceText = nextSourceText
+    previewError = ''
+  }
+
+  $effect(() => {
+    if (previewMode === 'list' && syncedPreviewSourceText !== sourceText) {
+      syncPreviewFromSource()
+    }
+  })
 </script>
 
 <section class="mx-auto flex w-full flex-1 items-center">
@@ -92,14 +147,71 @@ REMARK:: `
           </label>
         </div>
 
-        <label class="flex min-h-[28rem] flex-col gap-2">
-          <span class="text-sm font-medium">Текст с карточками</span>
-          <textarea
-            bind:value={sourceText}
-            class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-0 flex-1 resize-none overflow-auto rounded-2xl border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3"
-            placeholder={sourcePlaceholder}
-          ></textarea>
-        </label>
+        <div class="flex h-[18rem] flex-col gap-2">
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-sm font-medium">Текст с карточками</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onclick={() => setPreviewMode(previewMode === 'text' ? 'list' : 'text')}
+            >
+              {previewMode === 'text' ? 'Показать список' : 'Показать текст'}
+            </Button>
+          </div>
+
+          {#if previewMode === 'text'}
+            <textarea
+              bind:value={sourceText}
+              class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-0 h-[28rem] flex-1 resize-none overflow-auto rounded-2xl border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3"
+              placeholder={sourcePlaceholder}
+            ></textarea>
+          {:else}
+            <div
+              data-testid="cards-list-container"
+              class="dark:bg-input/30 border-input min-h-0 h-[18rem] flex-1 overflow-hidden rounded-2xl border bg-transparent text-sm"
+            >
+              {#if previewError}
+                <div class="h-full overflow-auto px-4 py-3">
+                  <p class="text-destructive">Не удалось распарсить текст: {previewError}</p>
+                </div>
+              {:else}
+                <div class="h-full overflow-auto px-4 py-3">
+                  <div class="space-y-4">
+                  {#each previewCards as card, index (index)}
+                    <section data-testid={`preview-card-${index}`} class="space-y-2 rounded-xl border border-border/70 bg-background/70 p-3">
+                      <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Карточка {index + 1}</p>
+                      <label class="flex flex-col gap-1">
+                        <span class="font-medium">Вопрос</span>
+                        <textarea
+                          value={card.question}
+                          class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 h-15 overflow-auto resize-y rounded-xl border bg-transparent px-3 py-2 outline-none focus-visible:ring-3"
+                          oninput={(event) => updateCardField(index, 'question', event.currentTarget.value)}
+                        ></textarea>
+                      </label>
+                      <label class="flex flex-col gap-1">
+                        <span class="font-medium">Ответ</span>
+                        <textarea
+                          value={card.answer}
+                          class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 h-15 overflow-auto resize-y rounded-xl border bg-transparent px-3 py-2 outline-none focus-visible:ring-3"
+                          oninput={(event) => updateCardField(index, 'answer', event.currentTarget.value)}
+                        ></textarea>
+                      </label>
+                      <label class="flex flex-col gap-1">
+                        <span class="font-medium">Ремарка</span>
+                        <textarea
+                          value={card.remarks}
+                          class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 h-10 overflow-auto resize-y rounded-xl border bg-transparent px-3 py-2 outline-none focus-visible:ring-3"
+                          oninput={(event) => updateCardField(index, 'remarks', event.currentTarget.value)}
+                        ></textarea>
+                      </label>
+                    </section>
+                  {/each}
+                  </div>
+                </div>
+              {/if}
+            </div>
+          {/if}
+        </div>
       </div>
 
       {#if createError}

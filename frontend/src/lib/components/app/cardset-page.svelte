@@ -81,7 +81,7 @@
           <p class="text-sm text-muted-foreground">Пока нет начатых сессий для этого набора.</p>
         {/if}
 
-        {#each sessions as session}
+        {#each sessions as session (session.id)}
           <div class="flex items-center gap-2 rounded-2xl border bg-background/60 px-2 py-2 transition hover:bg-muted/60">
             <button
               class="flex min-w-0 flex-1 items-center justify-between px-2 py-1 text-left"
