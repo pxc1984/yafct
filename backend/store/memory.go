@@ -13,7 +13,7 @@ type MemoryStore struct {
 	mu            sync.RWMutex
 	adminPassword [32]byte
 	Synced        bool
-	cardSets      map[string][]schema.Card
+	cardSets      map[string]schema.CardSetResponse
 	sessions      map[string]memorySession
 }
 
@@ -46,7 +46,7 @@ func (s *MemoryStore) Init(password string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.SetAdminPassword(password)
-	s.cardSets = make(map[string][]schema.Card)
+	s.cardSets = make(map[string]schema.CardSetResponse)
 	s.sessions = make(map[string]memorySession)
 	s.Synced = true
 	return nil
@@ -56,44 +56,44 @@ func (s *MemoryStore) Close() error { return nil }
 func (s *MemoryStore) ClearAll() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.cardSets = make(map[string][]schema.Card)
+	s.cardSets = make(map[string]schema.CardSetResponse)
 	s.sessions = make(map[string]memorySession)
 	return nil
 }
 
-func (s *MemoryStore) CreateCardSet(cards []schema.CardData, _ string) (string, error) {
+func (s *MemoryStore) CreateCardSet(request schema.CreateCardSetRequest, _ string) (string, error) {
 	setID, err := newShortID()
 	if err != nil {
 		return "", err
 	}
 
-	stored := make([]schema.Card, 0, len(cards))
-	for _, card := range cards {
+	stored := make([]schema.Card, 0, len(request.Cards))
+	for _, card := range request.Cards {
 		stored = append(stored, schema.Card{ID: uuid.NewString(), CardData: card})
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.cardSets[setID] = stored
+	s.cardSets[setID] = schema.CardSetResponse{ID: setID, CardSetMetadata: request.CardSetMetadata, Cards: stored}
 	return setID, nil
 }
 
-func (s *MemoryStore) GetCardSet(id string) ([]schema.Card, error) {
+func (s *MemoryStore) GetCardSet(id string) (*schema.CardSetResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	cards, ok := s.cardSets[id]
+	cardSet, ok := s.cardSets[id]
 	if !ok {
 		return nil, ErrCardSetNotFound
 	}
-	result := make([]schema.Card, len(cards))
-	copy(result, cards)
-	return result, nil
+	result := cardSet
+	result.Cards = append([]schema.Card(nil), cardSet.Cards...)
+	return &result, nil
 }
 
 func (s *MemoryStore) CreateSession(cardSetID string, _ string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cards, ok := s.cardSets[cardSetID]
+	cardSet, ok := s.cardSets[cardSetID]
 	if !ok {
 		return "", ErrCardSetNotFound
 	}
@@ -101,11 +101,11 @@ func (s *MemoryStore) CreateSession(cardSetID string, _ string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	queue := make([]int, len(cards))
-	for i := range cards {
+	queue := make([]int, len(cardSet.Cards))
+	for i := range cardSet.Cards {
 		queue[i] = i
 	}
-	s.sessions[sessionID] = memorySession{CardSetID: cardSetID, Total: len(cards), Queue: queue}
+	s.sessions[sessionID] = memorySession{CardSetID: cardSetID, Total: len(cardSet.Cards), Queue: queue}
 	return sessionID, nil
 }
 
@@ -116,16 +116,16 @@ func (s *MemoryStore) GetSessionProgress(cardSetID string, sessionID string) (*s
 	if !ok || session.CardSetID != cardSetID {
 		return nil, ErrSessionNotFound
 	}
-	cards, ok := s.cardSets[cardSetID]
+	cardSet, ok := s.cardSets[cardSetID]
 	if !ok {
 		return nil, ErrCardSetNotFound
 	}
 	passed := session.Total - len(session.Queue)
 	var current *schema.Card
 	if len(session.Queue) > 0 {
-		current = new(cards[session.Queue[0]])
+		current = new(cardSet.Cards[session.Queue[0]])
 	}
-	return &schema.SessionProgressResponse{Total: session.Total, Passed: passed, Card: current}, nil
+	return &schema.SessionProgressResponse{Total: session.Total, Passed: passed, CardSetMetadata: cardSet.CardSetMetadata, Card: current}, nil
 }
 
 func (s *MemoryStore) AdvanceSession(cardSetID string, sessionID string) (*schema.Card, error) {
@@ -135,7 +135,7 @@ func (s *MemoryStore) AdvanceSession(cardSetID string, sessionID string) (*schem
 	if !ok || session.CardSetID != cardSetID {
 		return nil, ErrSessionNotFound
 	}
-	cards, ok := s.cardSets[cardSetID]
+	cardSet, ok := s.cardSets[cardSetID]
 	if !ok {
 		return nil, ErrCardSetNotFound
 	}
@@ -147,7 +147,7 @@ func (s *MemoryStore) AdvanceSession(cardSetID string, sessionID string) (*schem
 	if len(session.Queue) == 0 {
 		return nil, nil
 	}
-	return new(cards[session.Queue[0]]), nil
+	return new(cardSet.Cards[session.Queue[0]]), nil
 }
 
 func (s *MemoryStore) SkipSessionCard(cardSetID string, sessionID string) (*schema.Card, error) {
@@ -157,7 +157,7 @@ func (s *MemoryStore) SkipSessionCard(cardSetID string, sessionID string) (*sche
 	if !ok || session.CardSetID != cardSetID {
 		return nil, ErrSessionNotFound
 	}
-	cards, ok := s.cardSets[cardSetID]
+	cardSet, ok := s.cardSets[cardSetID]
 	if !ok {
 		return nil, ErrCardSetNotFound
 	}
@@ -169,5 +169,5 @@ func (s *MemoryStore) SkipSessionCard(cardSetID string, sessionID string) (*sche
 		session.Queue = append(session.Queue[1:], current)
 		s.sessions[sessionID] = session
 	}
-	return new(cards[session.Queue[0]]), nil
+	return new(cardSet.Cards[session.Queue[0]]), nil
 }

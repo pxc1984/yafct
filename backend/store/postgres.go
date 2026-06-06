@@ -83,14 +83,21 @@ func (s *PostgresStore) SetAdminPassword(password string) {
 	s.adminPassword = sha256.Sum256([]byte(password))
 }
 
-func (s *PostgresStore) CreateCardSet(cards []schema.CardData, createdByIP string) (string, error) {
+func (s *PostgresStore) CreateCardSet(request schema.CreateCardSetRequest, createdByIP string) (string, error) {
 	for range maxIDGenerationAttempts {
 		setID, err := newShortID()
 		if err != nil {
 			return "", err
 		}
-		cardSet := models.CardSet{ID: setID, CreatedByIP: createdByIP, Cards: make([]models.Card, 0, len(cards))}
-		for i, card := range cards {
+		cardSet := models.CardSet{
+			ID:          setID,
+			Title:       request.Title,
+			Description: request.Description,
+			Author:      request.Author,
+			CreatedByIP: createdByIP,
+			Cards:       make([]models.Card, 0, len(request.Cards)),
+		}
+		for i, card := range request.Cards {
 			cardSet.Cards = append(cardSet.Cards, models.Card{
 				ID:        uuid.NewString(),
 				CardSetID: setID,
@@ -111,19 +118,32 @@ func (s *PostgresStore) CreateCardSet(cards []schema.CardData, createdByIP strin
 	return "", errors.New("failed to generate unique card set id")
 }
 
-func (s *PostgresStore) GetCardSet(id string) ([]schema.Card, error) {
+func (s *PostgresStore) GetCardSet(id string) (*schema.CardSetResponse, error) {
+	var cardSet models.CardSet
+	if err := s.db.First(&cardSet, "id = ?", id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrCardSetNotFound
+		}
+		return nil, err
+	}
+
 	var cards []models.Card
 	if err := s.db.Where("card_set_id = ?", id).Order("position asc").Find(&cards).Error; err != nil {
 		return nil, err
-	}
-	if len(cards) == 0 {
-		return nil, ErrCardSetNotFound
 	}
 	result := make([]schema.Card, 0, len(cards))
 	for _, card := range cards {
 		result = append(result, schema.Card{ID: card.ID, CardData: schema.CardData{Question: card.Question, Answer: card.Answer, Remarks: card.Remarks}})
 	}
-	return result, nil
+	return &schema.CardSetResponse{
+		ID: id,
+		CardSetMetadata: schema.CardSetMetadata{
+			Title:       cardSet.Title,
+			Description: cardSet.Description,
+			Author:      cardSet.Author,
+		},
+		Cards: result,
+	}, nil
 }
 
 func (s *PostgresStore) CreateSession(cardSetID string, createdByIP string) (string, error) {
@@ -172,6 +192,13 @@ func (s *PostgresStore) GetSessionProgress(cardSetID string, sessionID string) (
 		}
 		return nil, err
 	}
+	var cardSet models.CardSet
+	if err := s.db.First(&cardSet, "id = ?", cardSetID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrCardSetNotFound
+		}
+		return nil, err
+	}
 	var current *schema.Card
 	queue, err := decodeSessionQueue(session.Queue)
 	if err != nil {
@@ -184,7 +211,16 @@ func (s *PostgresStore) GetSessionProgress(cardSetID string, sessionID string) (
 		}
 		current = &schema.Card{ID: card.ID, CardData: schema.CardData{Question: card.Question, Answer: card.Answer, Remarks: card.Remarks}}
 	}
-	return &schema.SessionProgressResponse{Total: session.TotalCards, Passed: session.TotalCards - len(queue), Card: current}, nil
+	return &schema.SessionProgressResponse{
+		Total:  session.TotalCards,
+		Passed: session.TotalCards - len(queue),
+		CardSetMetadata: schema.CardSetMetadata{
+			Title:       cardSet.Title,
+			Description: cardSet.Description,
+			Author:      cardSet.Author,
+		},
+		Card: current,
+	}, nil
 }
 
 func (s *PostgresStore) AdvanceSession(cardSetID string, sessionID string) (*schema.Card, error) {

@@ -14,9 +14,7 @@ paths:
         content:
           application/json:
             schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/CardData'
+              $ref: '#/components/schemas/CreateCardSetRequest'
       responses:
         '201':
           description: Набор карточек создан
@@ -47,9 +45,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Card'
+                $ref: '#/components/schemas/CardSet'
     # in future versions add PATCH behind auth cookie
     post:
       description: Начать сессию
@@ -92,22 +88,27 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  total:
-                    type: integer
+                allOf:
+                  - $ref: '#/components/schemas/CardSetMetadata'
+                  - type: object
+                    properties:
+                      total:
+                        type: integer
 
-                  passed:
-                    type: integer
+                      passed:
+                        type: integer
 
-                  card:
-                    $ref: '#/components/schemas/Card'
+                      card:
+                        $ref: '#/components/schemas/Card'
 
 
 components:
   schemas:
     CardData:
       type: object
+      required:
+        - question
+        - answer
       properties:
         question:
           type: string
@@ -118,6 +119,35 @@ components:
         remarks:
           type: string
 
+    CardSetMetadata:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 120
+          description: Текст сохраняется после XSS-санитизации.
+
+        description:
+          type: string
+          description: Текст сохраняется после XSS-санитизации.
+
+        author:
+          type: string
+          description: Текст сохраняется после XSS-санитизации.
+
+    CreateCardSetRequest:
+      allOf:
+        - $ref: '#/components/schemas/CardSetMetadata'
+        - type: object
+          required:
+            - cards
+          properties:
+            cards:
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/CardData'
+
     Card:
       type: object
       properties:
@@ -126,3 +156,21 @@ components:
           format: uuid
       allOf:
         - $ref: '#/components/schemas/CardData'
+
+    CardSet:
+      allOf:
+        - type: object
+          required:
+            - id
+            - cards
+          properties:
+            id:
+              type: string
+              pattern: '^[A-Za-z0-9_-]{21}$'
+              minLength: 21
+              maxLength: 21
+            cards:
+              type: array
+              items:
+                $ref: '#/components/schemas/Card'
+        - $ref: '#/components/schemas/CardSetMetadata'

@@ -28,12 +28,16 @@ func (s *MemoryStoreTestSuite) TestAdminPassword() {
 }
 
 func (s *MemoryStoreTestSuite) TestCardSetSessionFlow() {
-	setID, err := s.s.CreateCardSet([]schema.CardData{{Question: "q1", Answer: "a1"}, {Question: "q2", Answer: "a2"}}, "127.0.0.1")
+	setID, err := s.s.CreateCardSet(schema.CreateCardSetRequest{
+		CardSetMetadata: schema.CardSetMetadata{Title: "set title", Description: "set description", Author: "set author"},
+		Cards:           []schema.CardData{{Question: "q1", Answer: "a1"}, {Question: "q2", Answer: "a2"}},
+	}, "127.0.0.1")
 	assert.NoError(s.T(), err)
 
-	cards, err := s.s.GetCardSet(setID)
+	cardSet, err := s.s.GetCardSet(setID)
 	assert.NoError(s.T(), err)
-	assert.Len(s.T(), cards, 2)
+	assert.Equal(s.T(), "set title", cardSet.Title)
+	assert.Len(s.T(), cardSet.Cards, 2)
 
 	sessionID, err := s.s.CreateSession(setID, "127.0.0.1")
 	assert.NoError(s.T(), err)

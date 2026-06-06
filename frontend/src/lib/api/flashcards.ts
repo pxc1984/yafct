@@ -6,18 +6,41 @@ export type CardData = {
   remarks: string
 }
 
+export type CardSetMetadata = {
+  title: string
+  description: string
+  author: string
+}
+
+export type CreateCardSetRequest = CardSetMetadata & {
+  cards: CardData[]
+}
+
 export type Card = CardData & {
   id: string
+}
+
+export type CardSet = CardSetMetadata & {
+  id: string
+  cards: Card[]
 }
 
 export type SessionState = {
   total: number
   passed: number
+  title: string
+  description: string
+  author: string
   card?: Card | null
 }
 
-export async function createCardSet(cards: CardData[]) {
-  const { data } = await api.post<{ id: string }>('/api/v1/cards', cards)
+export async function getCardSet(cardsetId: string) {
+  const { data } = await api.get<CardSet>(`/api/v1/cards/${cardsetId}`)
+  return data
+}
+
+export async function createCardSet(payload: CreateCardSetRequest) {
+  const { data } = await api.post<{ id: string }>('/api/v1/cards', payload)
   return data
 }
 

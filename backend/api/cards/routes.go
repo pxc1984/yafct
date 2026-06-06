@@ -2,7 +2,9 @@ package cards
 
 import (
 	"errors"
+	"html"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pxc1984/flashcards-trainer/backend/domain/schema"
@@ -25,13 +27,20 @@ func RegisterRoutes(router gin.IRoutes, store interfaces.StoreBase) {
 }
 
 func (h Handler) createCardSet(ctx *gin.Context) {
-	var request []schema.CardData
+	var request schema.CreateCardSetRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if len(request) == 0 {
+	request.Title = sanitizePlainText(request.Title)
+	request.Description = sanitizePlainText(request.Description)
+	request.Author = sanitizePlainText(request.Author)
+	if len(request.Cards) == 0 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "cards payload must not be empty"})
+		return
+	}
+	if len(request.Title) > 120 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "title must be at most 120 characters"})
 		return
 	}
 	id, err := h.store.CreateCardSet(request, ctx.ClientIP())
@@ -40,6 +49,10 @@ func (h Handler) createCardSet(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusCreated, schema.CreateCardSetResponse{ID: id})
+}
+
+func sanitizePlainText(value string) string {
+	return strings.TrimSpace(html.EscapeString(value))
 }
 
 func (h Handler) getCardSet(ctx *gin.Context) {

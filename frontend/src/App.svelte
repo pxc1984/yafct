@@ -12,11 +12,14 @@
   import promptTemplate from '../prompt.txt?raw'
   import {
     createCardSet,
+    getCardSet,
     getSessionState,
     passCurrentCard,
     skipCurrentCard,
     startSession,
     type CardData,
+    type CardSet,
+    type CreateCardSetRequest,
     type SessionState,
   } from '$lib/api/flashcards'
   import RichMathText from '$lib/components/rich-math-text.svelte'
@@ -40,6 +43,9 @@
 
   let route = $state<Route>(parseRoute(window.location.pathname))
   let sourceText = $state('')
+  let setTitle = $state('')
+  let setDescription = $state('')
+  let setAuthor = $state('')
   let isCreating = $state(false)
   let createError = $state('')
   let copyState = $state<'idle' | 'done'>('idle')
@@ -47,6 +53,9 @@
   let sessions = $state<SessionRecord[]>([])
   let sessionsLoading = $state(false)
   let sessionListError = $state('')
+  let cardSetDetails = $state<CardSet | null>(null)
+  let cardSetLoading = $state(false)
+  let cardSetError = $state('')
 
   let trainingState = $state<SessionState | null>(null)
   let trainingLoading = $state(false)
@@ -228,7 +237,14 @@
     isCreating = true
 
     try {
-      const { id } = await createCardSet(cards)
+      const payload: CreateCardSetRequest = {
+        title: setTitle,
+        description: setDescription,
+        author: setAuthor,
+        cards,
+      }
+
+      const { id } = await createCardSet(payload)
       navigate(`/${id}`)
     } catch (error) {
       createError = error instanceof Error ? error.message : 'Не удалось создать набор.'
@@ -250,6 +266,19 @@
       sessionListError = error instanceof Error ? error.message : 'Не удалось создать сессию.'
     } finally {
       sessionsLoading = false
+    }
+  }
+
+  async function loadCardSet(cardsetId: string) {
+    cardSetLoading = true
+    cardSetError = ''
+
+    try {
+      cardSetDetails = await getCardSet(cardsetId)
+    } catch (error) {
+      cardSetError = error instanceof Error ? error.message : 'Не удалось загрузить набор.'
+    } finally {
+      cardSetLoading = false
     }
   }
 
@@ -380,10 +409,12 @@
   $effect(() => {
     if (route.name === 'cardset') {
       syncSessions(route.cardsetId)
+      void loadCardSet(route.cardsetId)
     }
 
     if (route.name === 'session') {
       syncSwipeHint()
+      cardSetDetails = null
       void loadTraining(route.cardsetId, route.sessionId)
     }
   })
@@ -441,12 +472,10 @@
       <section class="mx-auto flex w-full flex-1 items-center">
         <Card.Root class="border-border/70 bg-card/85 shadow-sm backdrop-blur">
           <Card.Header class="gap-4">
-            <Badge variant="secondary" class="w-fit">LLM prompt</Badge>
             <div class="space-y-2">
               <Card.Title class="text-3xl sm:text-4xl">Тренировка по карточкам</Card.Title>
               <Card.Description>
-                Скопируй системный промпт, сгенерируй карточки в текстовом формате и вставь
-                результат ниже.
+                Если лень писать самостоятельно карточки можешь воспользоваться вот этим системным промптом.
               </Card.Description>
             </div>
           </Card.Header>
@@ -464,20 +493,52 @@
               <pre class="max-h-[4.75rem] overflow-auto whitespace-pre-wrap text-sm text-muted-foreground">{promptText}</pre>
             </div>
 
-            <label class="space-y-2">
-              <span class="text-sm font-medium">Текст с карточками</span>
-              <textarea
-                bind:value={sourceText}
-                class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-72 w-full rounded-2xl border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3"
-                placeholder={`QUESTION:: Что такое closure?
+            <div class="grid gap-4 lg:grid-cols-2 lg:items-stretch">
+              <div class="flex min-h-[28rem] flex-col gap-4">
+                <label class="space-y-2">
+                  <span class="text-sm font-medium">Название набора</span>
+                  <input
+                    bind:value={setTitle}
+                    maxlength="120"
+                    class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 h-12 w-full rounded-2xl border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3"
+                    placeholder="Математический анализ к коллоквиуму"
+                  />
+                </label>
+
+                <label class="flex flex-1 flex-col gap-2">
+                  <span class="text-sm font-medium">Описание</span>
+                  <textarea
+                    bind:value={setDescription}
+                    class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-0 flex-1 resize-none overflow-auto rounded-2xl border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3"
+                    placeholder="Сделано без любви и с помощью ллм, зато работает."
+                  ></textarea>
+                </label>
+
+                <label class="space-y-2">
+                  <span class="text-sm font-medium">Имя автора</span>
+                  <input
+                    bind:value={setAuthor}
+                    class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 h-12 w-full rounded-2xl border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3"
+                    placeholder="Игорь <@igamamaev>"
+                  />
+                </label>
+              </div>
+
+              <label class="flex min-h-[28rem] flex-col gap-2">
+                <span class="text-sm font-medium">Текст с карточками</span>
+                <textarea
+                  bind:value={sourceText}
+                  class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-0 flex-1 resize-none overflow-auto rounded-2xl border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3"
+                  placeholder= {`QUESTION:: Что такое closure?
 ANSWER:: Функция вместе с лексическим окружением.
 REMARK:: Удобно для инкапсуляции состояния.
 
 QUESTION:: Что возвращает выражение $2^3$?
 ANSWER:: $8$
 REMARK:: `}
-              ></textarea>
-            </label>
+                ></textarea>
+              </label>
+            </div>
 
             {#if createError}
               <p class="text-sm text-destructive">{createError}</p>
@@ -501,12 +562,22 @@ REMARK:: `}
           <Card.Root>
             <Card.Header>
               <Badge variant="outline" class="w-fit">Набор</Badge>
-              <Card.Title class="break-all text-2xl">{route.cardsetId}</Card.Title>
-              <Card.Description>
-                Запусти новую тренировочную сессию или вернись к одной из уже начатых.
-              </Card.Description>
+              <Card.Title class="break-words text-2xl">{cardSetDetails?.title || route.cardsetId}</Card.Title>
+              {#if cardSetDetails?.author}
+                <Card.Description>Автор: {cardSetDetails.author}</Card.Description>
+              {/if}
             </Card.Header>
-            <Card.Content>
+            <Card.Content class="space-y-4">
+              {#if cardSetLoading}
+                <div class="rounded-2xl border bg-background/60 p-4 text-sm text-muted-foreground">Загрузка описания...</div>
+              {:else if cardSetError}
+                <p class="text-sm text-destructive">{cardSetError}</p>
+              {:else if cardSetDetails?.description}
+                <div class="max-h-[7.5rem] overflow-auto rounded-2xl border bg-background/60 p-4 text-sm text-muted-foreground whitespace-pre-wrap">
+                  {cardSetDetails.description}
+                </div>
+              {/if}
+
               <Button size="lg" class="w-full gap-2" onclick={() => createSession(activeCardsetId)} disabled={sessionsLoading}>
                 <Play class="size-4" />
                 {sessionsLoading ? 'Создание...' : 'Начать новую сессию'}
@@ -571,11 +642,21 @@ REMARK:: `}
       <section class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 overflow-x-hidden pb-28 sm:pb-8">
         <div class="flex items-center justify-between gap-3">
           <div>
-            <p class="text-sm text-muted-foreground">Набор {route.cardsetId}</p>
-            <h1 class="text-2xl font-semibold">Тренировка</h1>
+            <p class="text-sm text-muted-foreground">{trainingState?.author ? `Автор: ${trainingState.author}` : `Набор ${route.cardsetId}`}</p>
+            <h1 class="text-2xl font-semibold">{trainingState?.title || 'Тренировка'}</h1>
           </div>
           <Button variant="outline" onclick={() => navigate(`/${activeCardsetId}`)}>К сессиям</Button>
         </div>
+
+        {#if trainingState?.description}
+          <Card.Root>
+            <Card.Content class="pt-6">
+              <div class="max-h-[7.5rem] overflow-auto whitespace-pre-wrap rounded-2xl border bg-background/60 p-4 text-sm text-muted-foreground">
+                {trainingState.description}
+              </div>
+            </Card.Content>
+          </Card.Root>
+        {/if}
 
         <Card.Root>
           <Card.Content class="space-y-3 pt-6">

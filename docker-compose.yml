@@ -37,7 +37,7 @@ services:
       frontend:
         condition: service_healthy
     ports:
-      - "9679:80"
+      - "9678:80"
 
   db:
     image: postgres:16-alpine

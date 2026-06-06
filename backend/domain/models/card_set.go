@@ -2,6 +2,9 @@ package models
 
 type CardSet struct {
 	ID          string `gorm:"primaryKey;size:21"`
+	Title       string `gorm:"size:120;not null;default:''"`
+	Description string `gorm:"type:text;not null;default:''"`
+	Author      string `gorm:"size:120;not null;default:''"`
 	CreatedByIP string `gorm:"size:45;not null;default:''"`
 	Cards       []Card `gorm:"constraint:OnDelete:CASCADE"`
 }

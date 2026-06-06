@@ -29,8 +29,8 @@ type StoreBase interface {
 
 	SetAdminPassword(password string)
 	CheckPassword(password string) bool
-	CreateCardSet(cards []schema.CardData, createdByIP string) (string, error)
-	GetCardSet(id string) ([]schema.Card, error)
+	CreateCardSet(request schema.CreateCardSetRequest, createdByIP string) (string, error)
+	GetCardSet(id string) (*schema.CardSetResponse, error)
 	CreateSession(cardSetID string, createdByIP string) (string, error)
 	GetSessionProgress(cardSetID string, sessionID string) (*schema.SessionProgressResponse, error)
 	AdvanceSession(cardSetID string, sessionID string) (*schema.Card, error)

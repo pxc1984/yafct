@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -24,9 +25,9 @@ func TestCardsAPIFlow(t *testing.T) {
 	apiGroup := router.Group("/api/v1")
 	RegisterRoutes(apiGroup, storeObj)
 
-	createBody := mustJSON(t, []schema.CardData{
-		{Question: "q1", Answer: "a1", Remarks: "r1"},
-		{Question: "q2", Answer: "a2", Remarks: "r2"},
+	createBody := mustJSON(t, schema.CreateCardSetRequest{
+		CardSetMetadata: schema.CardSetMetadata{Title: "<b>Title</b>", Description: "desc", Author: "<script>alert(1)</script>"},
+		Cards:           []schema.CardData{{Question: "q1", Answer: "a1", Remarks: "r1"}, {Question: "q2", Answer: "a2", Remarks: "r2"}},
 	})
 	createResp := performRequest(router, http.MethodPost, "/api/v1/cards", createBody)
 	require.Equal(t, http.StatusCreated, createResp.Code)
@@ -38,11 +39,13 @@ func TestCardsAPIFlow(t *testing.T) {
 	getSetResp := performRequest(router, http.MethodGet, "/api/v1/cards/"+created.ID, nil)
 	require.Equal(t, http.StatusOK, getSetResp.Code)
 
-	var cardsResp []schema.Card
+	var cardsResp schema.CardSetResponse
 	require.NoError(t, json.Unmarshal(getSetResp.Body.Bytes(), &cardsResp))
-	require.Len(t, cardsResp, 2)
-	assert.Equal(t, "q1", cardsResp[0].Question)
-	assert.Equal(t, "q2", cardsResp[1].Question)
+	require.Len(t, cardsResp.Cards, 2)
+	assert.Equal(t, "&lt;b&gt;Title&lt;/b&gt;", cardsResp.Title)
+	assert.Equal(t, "&lt;script&gt;alert(1)&lt;/script&gt;", cardsResp.Author)
+	assert.Equal(t, "q1", cardsResp.Cards[0].Question)
+	assert.Equal(t, "q2", cardsResp.Cards[1].Question)
 
 	startResp := performRequest(router, http.MethodPost, "/api/v1/cards/"+created.ID, nil)
 	require.Equal(t, http.StatusOK, startResp.Code)
@@ -58,6 +61,9 @@ func TestCardsAPIFlow(t *testing.T) {
 	require.NoError(t, json.Unmarshal(progressResp.Body.Bytes(), &progress))
 	assert.Equal(t, 2, progress.Total)
 	assert.Equal(t, 0, progress.Passed)
+	assert.Equal(t, "&lt;b&gt;Title&lt;/b&gt;", progress.Title)
+	assert.Equal(t, "desc", progress.Description)
+	assert.Equal(t, "&lt;script&gt;alert(1)&lt;/script&gt;", progress.Author)
 	require.NotNil(t, progress.Card)
 	assert.Equal(t, "q1", progress.Card.Question)
 
@@ -103,7 +109,13 @@ func TestCardsAPIErrors(t *testing.T) {
 	apiGroup := router.Group("/api/v1")
 	RegisterRoutes(apiGroup, storeObj)
 
-	resp := performRequest(router, http.MethodPost, "/api/v1/cards", mustJSON(t, []schema.CardData{}))
+	resp := performRequest(router, http.MethodPost, "/api/v1/cards", mustJSON(t, schema.CreateCardSetRequest{}))
+	assert.Equal(t, http.StatusBadRequest, resp.Code)
+
+	resp = performRequest(router, http.MethodPost, "/api/v1/cards", mustJSON(t, schema.CreateCardSetRequest{
+		CardSetMetadata: schema.CardSetMetadata{Title: strings.Repeat("a", 121)},
+		Cards:           []schema.CardData{{Question: "q1", Answer: "a1"}},
+	}))
 	assert.Equal(t, http.StatusBadRequest, resp.Code)
 
 	resp = performRequest(router, http.MethodGet, "/api/v1/cards/missing", nil)
