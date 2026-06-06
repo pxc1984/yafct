@@ -1,0 +1,128 @@
+openapi: 3.1.0
+info:
+  title: Flashcards Trainer backend
+  description: Flashcards Trainer backend
+  version: 1.0.0
+servers:
+  - url: 'https://ft.iamamaev.ru'
+  - url: 'http://localhost:8080'
+paths:
+  /api/v1/cards:
+    post:
+      description: Создать набор карточек
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/CardData'
+      responses:
+        '201':
+          description: Набор карточек создан
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    pattern: '^[A-Za-z0-9_-]{21}$'
+                    minLength: 21
+                    maxLength: 21
+
+
+  /api/v1/cards/{id}:
+    get:
+      parameters:
+        - name: session
+          content:
+            type: string
+            pattern: '^[A-Za-z0-9_-]{21}$'
+            minLength: 21
+            maxLength: 21
+      responses:
+        '200':
+          description: Вот набор карточек с таким айди
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Card'
+    # in future versions add PATCH behind auth cookie
+    post:
+      description: Начать сессию
+      responses:
+        '200':
+          description: Вот держи твой айди сессии
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: string
+                    pattern: '^[A-Za-z0-9_-]{21}$'
+                    minLength: 21
+                    maxLength: 21
+
+  /api/v1/cards/{id}/{session_id}:
+    post:
+      description: получить следующую карточку
+      responses:
+        '200':
+          description: карточка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+
+    delete:
+      description: завершить сеанс
+      responses:
+        '200':
+          description: ок завершаем сеанс забываем
+
+    get:
+      description: получить прогресс сеанса и текущий вопрос
+      responses:
+        '200':
+          description: держи
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+
+                  passed:
+                    type: integer
+
+                  card:
+                    $ref: '#/components/schemas/Card'
+
+
+components:
+  schemas:
+    CardData:
+      type: object
+      properties:
+        question:
+          type: string
+
+        answer:
+          type: string
+
+        remarks:
+          type: string
+
+    Card:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+      allOf:
+        - $ref: '#/components/schemas/CardData'

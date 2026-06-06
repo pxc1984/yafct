@@ -51,9 +51,10 @@ func main() {
 		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Cookie"},
 		AllowCredentials: true,
 	}))
-	router.Use(middleware.RateLimitMiddleware())
+	apiGroup := router.Group("/api/v1") // inject here
+	apiGroup.Use(middleware.RateLimitMiddleware(middleware.RateLimitCapacity, middleware.RateLimitRefillPerSecond))
 
-	_ = router.Group("/api/v1") // inject here
+	_ = apiGroup.Group("/v1") // inject here
 
 	{
 	}

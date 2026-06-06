@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	rateLimitCapacity        = 10
-	rateLimitRefillPerSecond = 4.0
+	RateLimitCapacity        = 10
+	RateLimitRefillPerSecond = 4.0
 )
 
-func RateLimitMiddleware() gin.HandlerFunc {
+func RateLimitMiddleware(capacity int, refillPerSecond int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		cache := store.GetCacheStore()
 		if cache == nil {
@@ -23,7 +23,7 @@ func RateLimitMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		allowed, retryAfter, err := cache.AllowRateLimit(rateLimitKey(c.ClientIP()), rateLimitCapacity, rateLimitRefillPerSecond)
+		allowed, retryAfter, err := cache.AllowRateLimit(rateLimitKey(c.ClientIP()), capacity, refillPerSecond)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
