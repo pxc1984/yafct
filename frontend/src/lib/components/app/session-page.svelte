@@ -57,16 +57,6 @@
     <Button variant="outline" onclick={() => onNavigate(`/${cardsetId}`)}>К сессиям</Button>
   </div>
 
-  {#if trainingState?.description}
-    <Card.Root>
-      <Card.Content class="pt-6">
-        <div class="max-h-[7.5rem] overflow-auto whitespace-pre-wrap rounded-2xl border bg-background/60 p-4 text-sm text-muted-foreground">
-          {trainingState.description}
-        </div>
-      </Card.Content>
-    </Card.Root>
-  {/if}
-
   <Card.Root>
     <Card.Content class="space-y-3 pt-6">
       <div class="flex items-center justify-between text-sm text-muted-foreground">
