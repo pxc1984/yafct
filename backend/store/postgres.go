@@ -6,11 +6,14 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/pxc1984/flashcards-trainer/backend/domain/models"
 	"github.com/pxc1984/flashcards-trainer/backend/domain/schema"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
+
+const maxIDGenerationAttempts = 8
 
 type PostgresStore struct {
 	db            *gorm.DB
@@ -80,26 +83,32 @@ func (s *PostgresStore) SetAdminPassword(password string) {
 	s.adminPassword = sha256.Sum256([]byte(password))
 }
 
-func (s *PostgresStore) CreateCardSet(cards []schema.CardData) (string, error) {
-	setID, err := newShortID()
-	if err != nil {
-		return "", err
+func (s *PostgresStore) CreateCardSet(cards []schema.CardData, createdByIP string) (string, error) {
+	for range maxIDGenerationAttempts {
+		setID, err := newShortID()
+		if err != nil {
+			return "", err
+		}
+		cardSet := models.CardSet{ID: setID, CreatedByIP: createdByIP, Cards: make([]models.Card, 0, len(cards))}
+		for i, card := range cards {
+			cardSet.Cards = append(cardSet.Cards, models.Card{
+				ID:        uuid.NewString(),
+				CardSetID: setID,
+				Position:  i,
+				Question:  card.Question,
+				Answer:    card.Answer,
+				Remarks:   card.Remarks,
+			})
+		}
+		if err := s.db.Create(&cardSet).Error; err != nil {
+			if isUniqueViolation(err) {
+				continue
+			}
+			return "", err
+		}
+		return setID, nil
 	}
-	cardSet := models.CardSet{ID: setID, Cards: make([]models.Card, 0, len(cards))}
-	for i, card := range cards {
-		cardSet.Cards = append(cardSet.Cards, models.Card{
-			ID:        uuid.NewString(),
-			CardSetID: setID,
-			Position:  i,
-			Question:  card.Question,
-			Answer:    card.Answer,
-			Remarks:   card.Remarks,
-		})
-	}
-	if err := s.db.Create(&cardSet).Error; err != nil {
-		return "", err
-	}
-	return setID, nil
+	return "", errors.New("failed to generate unique card set id")
 }
 
 func (s *PostgresStore) GetCardSet(id string) ([]schema.Card, error) {
@@ -117,7 +126,7 @@ func (s *PostgresStore) GetCardSet(id string) ([]schema.Card, error) {
 	return result, nil
 }
 
-func (s *PostgresStore) CreateSession(cardSetID string) (string, error) {
+func (s *PostgresStore) CreateSession(cardSetID string, createdByIP string) (string, error) {
 	var total int64
 	if err := s.db.Model(&models.Card{}).Where("card_set_id = ?", cardSetID).Count(&total).Error; err != nil {
 		return "", err
@@ -133,15 +142,26 @@ func (s *PostgresStore) CreateSession(cardSetID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	sessionID, err := newShortID()
-	if err != nil {
-		return "", err
+	for range maxIDGenerationAttempts {
+		sessionID, err := newShortID()
+		if err != nil {
+			return "", err
+		}
+		session := models.CardSession{ID: sessionID, CardSetID: cardSetID, CreatedByIP: createdByIP, TotalCards: int(total), Queue: encodedQueue}
+		if err := s.db.Create(&session).Error; err != nil {
+			if isUniqueViolation(err) {
+				continue
+			}
+			return "", err
+		}
+		return sessionID, nil
 	}
-	session := models.CardSession{ID: sessionID, CardSetID: cardSetID, TotalCards: int(total), Queue: encodedQueue}
-	if err := s.db.Create(&session).Error; err != nil {
-		return "", err
-	}
-	return sessionID, nil
+	return "", errors.New("failed to generate unique session id")
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
 func (s *PostgresStore) GetSessionProgress(cardSetID string, sessionID string) (*schema.SessionProgressResponse, error) {

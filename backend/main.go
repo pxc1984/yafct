@@ -25,7 +25,7 @@ func main() {
 	_ = godotenv.Load()
 	InitSettings()
 	initLogging()
-	storeObj, err := store.InitStore(true, "", "admin", true, "")
+	storeObj, err := store.InitStore(Settings.UseMemoryStore, Settings.PostgresDbUrl(), Settings.AdminPassword, true, "")
 	if err != nil {
 		panic(err.Error())
 	}

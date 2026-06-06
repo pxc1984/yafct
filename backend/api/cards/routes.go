@@ -34,7 +34,7 @@ func (h Handler) createCardSet(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "cards payload must not be empty"})
 		return
 	}
-	id, err := h.store.CreateCardSet(request)
+	id, err := h.store.CreateCardSet(request, ctx.ClientIP())
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -52,7 +52,7 @@ func (h Handler) getCardSet(ctx *gin.Context) {
 }
 
 func (h Handler) startSession(ctx *gin.Context) {
-	sessionID, err := h.store.CreateSession(ctx.Param("id"))
+	sessionID, err := h.store.CreateSession(ctx.Param("id"), ctx.ClientIP())
 	if err != nil {
 		ctx.JSON(statusForError(err), gin.H{"error": err.Error()})
 		return

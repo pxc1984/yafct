@@ -33,7 +33,7 @@ func TestCardsAPIFlow(t *testing.T) {
 
 	var created schema.CreateCardSetResponse
 	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
-	assert.Len(t, created.ID, 21)
+	assert.Len(t, created.ID, 8)
 
 	getSetResp := performRequest(router, http.MethodGet, "/api/v1/cards/"+created.ID, nil)
 	require.Equal(t, http.StatusOK, getSetResp.Code)
@@ -49,7 +49,7 @@ func TestCardsAPIFlow(t *testing.T) {
 
 	var session schema.StartSessionResponse
 	require.NoError(t, json.Unmarshal(startResp.Body.Bytes(), &session))
-	assert.Len(t, session.SessionID, 21)
+	assert.Len(t, session.SessionID, 8)
 
 	progressResp := performRequest(router, http.MethodGet, "/api/v1/cards/"+created.ID+"/"+session.SessionID, nil)
 	require.Equal(t, http.StatusOK, progressResp.Code)
@@ -120,6 +120,7 @@ func TestCardsAPIErrors(t *testing.T) {
 
 func performRequest(router http.Handler, method string, path string, body []byte) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(method, path, bytes.NewReader(body))
+	req.RemoteAddr = "203.0.113.5:1234"
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

@@ -1,8 +1,9 @@
 package models
 
 type CardSet struct {
-	ID    string `gorm:"primaryKey;size:21"`
-	Cards []Card `gorm:"constraint:OnDelete:CASCADE"`
+	ID          string `gorm:"primaryKey;size:21"`
+	CreatedByIP string `gorm:"size:45;not null;default:''"`
+	Cards       []Card `gorm:"constraint:OnDelete:CASCADE"`
 }
 
 type Card struct {
@@ -15,8 +16,9 @@ type Card struct {
 }
 
 type CardSession struct {
-	ID         string `gorm:"primaryKey;size:21"`
-	CardSetID  string `gorm:"index;size:21;not null"`
-	TotalCards int    `gorm:"not null"`
-	Queue      string `gorm:"type:text;not null"`
+	ID          string `gorm:"primaryKey;size:21"`
+	CardSetID   string `gorm:"index;size:21;not null"`
+	CreatedByIP string `gorm:"size:45;not null;default:''"`
+	TotalCards  int    `gorm:"not null"`
+	Queue       string `gorm:"type:text;not null"`
 }

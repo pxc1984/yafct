@@ -61,7 +61,7 @@ func (s *MemoryStore) ClearAll() error {
 	return nil
 }
 
-func (s *MemoryStore) CreateCardSet(cards []schema.CardData) (string, error) {
+func (s *MemoryStore) CreateCardSet(cards []schema.CardData, _ string) (string, error) {
 	setID, err := newShortID()
 	if err != nil {
 		return "", err
@@ -90,7 +90,7 @@ func (s *MemoryStore) GetCardSet(id string) ([]schema.Card, error) {
 	return result, nil
 }
 
-func (s *MemoryStore) CreateSession(cardSetID string) (string, error) {
+func (s *MemoryStore) CreateSession(cardSetID string, _ string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cards, ok := s.cardSets[cardSetID]
