@@ -1,5 +1,7 @@
 <script lang="ts">
   import Copy from '@lucide/svelte/icons/copy'
+  import Plus from '@lucide/svelte/icons/plus'
+  import Trash2 from '@lucide/svelte/icons/trash-2'
 
   import type { CardData } from '$lib/api/flashcards'
 
@@ -44,6 +46,8 @@ REMARK:: `
   let previewCards = $state<CardData[]>([])
   let previewError = $state('')
   let syncedPreviewSourceText = ''
+  let pendingDeleteIndex = $state<number | null>(null)
+  let deleteConfirmationTimeout: ReturnType<typeof setTimeout> | null = null
 
   function formatCardData(cards: CardData[]) {
     return cards
@@ -66,6 +70,15 @@ REMARK:: `
     syncedPreviewSourceText = sourceText
   }
 
+  function clearPendingDelete() {
+    pendingDeleteIndex = null
+
+    if (deleteConfirmationTimeout) {
+      clearTimeout(deleteConfirmationTimeout)
+      deleteConfirmationTimeout = null
+    }
+  }
+
   function setPreviewMode(mode: 'text' | 'list') {
     previewMode = mode
 
@@ -83,6 +96,45 @@ REMARK:: `
     syncedPreviewSourceText = nextSourceText
     sourceText = nextSourceText
     previewError = ''
+  }
+
+  function addPreviewCard() {
+    clearPendingDelete()
+
+    const nextCardNumber = previewCards.length + 1
+    previewCards = [
+      ...previewCards,
+      {
+        question: `Новый вопрос ${nextCardNumber}`,
+        answer: `Новый ответ ${nextCardNumber}`,
+        remarks: '',
+      },
+    ]
+
+    const nextSourceText = formatCardData(previewCards)
+    syncedPreviewSourceText = nextSourceText
+    sourceText = nextSourceText
+    previewError = ''
+  }
+
+  function requestDeleteCard(index: number) {
+    if (pendingDeleteIndex === index) {
+      previewCards = previewCards.filter((_, cardIndex) => cardIndex !== index)
+
+      const nextSourceText = formatCardData(previewCards)
+      syncedPreviewSourceText = nextSourceText
+      sourceText = nextSourceText
+      previewError = ''
+      clearPendingDelete()
+      return
+    }
+
+    clearPendingDelete()
+    pendingDeleteIndex = index
+    deleteConfirmationTimeout = setTimeout(() => {
+      pendingDeleteIndex = null
+      deleteConfirmationTimeout = null
+    }, 4000)
   }
 
   $effect(() => {
@@ -150,13 +202,21 @@ REMARK:: `
         <div class="flex h-[18rem] flex-col gap-2">
           <div class="flex items-center justify-between gap-3">
             <span class="text-sm font-medium">Текст с карточками</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onclick={() => setPreviewMode(previewMode === 'text' ? 'list' : 'text')}
-            >
-              {previewMode === 'text' ? 'Показать список' : 'Показать текст'}
-            </Button>
+            <div class="flex items-center gap-2">
+              {#if previewMode === 'list'}
+                <Button variant="outline" size="sm" onclick={addPreviewCard}>
+                  <Plus class="size-4" />
+                  Добавить карточку
+                </Button>
+              {/if}
+              <Button
+                variant="outline"
+                size="sm"
+                onclick={() => setPreviewMode(previewMode === 'text' ? 'list' : 'text')}
+              >
+                {previewMode === 'text' ? 'Показать список' : 'Показать текст'}
+              </Button>
+            </div>
           </div>
 
           {#if previewMode === 'text'}
@@ -178,7 +238,16 @@ REMARK:: `
                 <div class="h-full overflow-auto px-4 py-3">
                   <div class="space-y-4">
                   {#each previewCards as card, index (index)}
-                    <section data-testid={`preview-card-${index}`} class="space-y-2 rounded-xl border border-border/70 bg-background/70 p-3">
+                    <section data-testid={`preview-card-${index}`} class="relative space-y-2 rounded-xl border border-border/70 bg-background/70 p-3">
+                      <Button
+                        variant={pendingDeleteIndex === index ? 'destructive' : 'outline'}
+                        size="icon-sm"
+                        class="absolute top-3 right-3"
+                        onclick={() => requestDeleteCard(index)}
+                        aria-label={pendingDeleteIndex === index ? 'Подтвердить удаление карточки' : 'Удалить карточку'}
+                      >
+                        <Trash2 class="size-4" />
+                      </Button>
                       <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Карточка {index + 1}</p>
                       <label class="flex flex-col gap-1">
                         <span class="font-medium">Вопрос</span>

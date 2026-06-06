@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/svelte'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import HomePage from './home-page.svelte'
 
@@ -94,5 +94,95 @@ describe('HomePage cards list preview', () => {
     expect(lastQuestion).toBeInTheDocument()
     expect(viewport.scrollHeight).toBeGreaterThan(viewport.clientHeight)
     expect(lastCard.getBoundingClientRect().top).toBeGreaterThan(viewport.getBoundingClientRect().bottom)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('adds a new card from list mode', async () => {
+    render(HomePage, {
+      props: {
+        promptText: 'prompt',
+        sourceText: buildSourceText(2),
+        setTitle: '',
+        setDescription: '',
+        setAuthor: '',
+        parseCardData,
+        isCreating: false,
+        createError: '',
+        copyState: 'idle',
+        onCopyPrompt: () => {},
+        onCreateSet: () => {},
+      },
+    })
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Показать список' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Добавить карточку' }))
+
+    expect(screen.getByTestId('preview-card-2')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Новый вопрос 3')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Новый ответ 3')).toBeInTheDocument()
+  })
+
+  it('deletes a card only after second click within 4 seconds', async () => {
+    vi.useFakeTimers()
+
+    render(HomePage, {
+      props: {
+        promptText: 'prompt',
+        sourceText: buildSourceText(2),
+        setTitle: '',
+        setDescription: '',
+        setAuthor: '',
+        parseCardData,
+        isCreating: false,
+        createError: '',
+        copyState: 'idle',
+        onCopyPrompt: () => {},
+        onCreateSet: () => {},
+      },
+    })
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Показать список' }))
+
+    const deleteButton = screen.getAllByRole('button', { name: 'Удалить карточку' })[0]
+    await fireEvent.click(deleteButton)
+
+    expect(screen.getByRole('button', { name: 'Подтвердить удаление карточки' })).toBeInTheDocument()
+    expect(screen.getByTestId('preview-card-1')).toBeInTheDocument()
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Подтвердить удаление карточки' }))
+
+    expect(screen.queryByTestId('preview-card-1')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Удалить карточку' })).toHaveLength(1)
+  })
+
+  it('cancels delete confirmation after 4 seconds', async () => {
+    vi.useFakeTimers()
+
+    render(HomePage, {
+      props: {
+        promptText: 'prompt',
+        sourceText: buildSourceText(2),
+        setTitle: '',
+        setDescription: '',
+        setAuthor: '',
+        parseCardData,
+        isCreating: false,
+        createError: '',
+        copyState: 'idle',
+        onCopyPrompt: () => {},
+        onCreateSet: () => {},
+      },
+    })
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Показать список' }))
+    await fireEvent.click(screen.getAllByRole('button', { name: 'Удалить карточку' })[0])
+
+    await vi.advanceTimersByTimeAsync(4000)
+
+    expect(screen.queryByRole('button', { name: 'Подтвердить удаление карточки' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Удалить карточку' })).toHaveLength(2)
   })
 })
