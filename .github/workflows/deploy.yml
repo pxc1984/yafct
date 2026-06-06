@@ -1,0 +1,40 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH Key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Sync files to server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          rsync -avz --delete --progress docker-compose.yml backend frontend admin nginx metrics $SSH_USER@$SSH_HOST:${{ secrets.DEPLOY_PATH }}
+
+      - name: Deploy to server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          ENV: ${{ secrets.ENV }}
+        run: |
+          ssh $SSH_USER@$SSH_HOST "printf '%s' \"${{ secrets.ENV }}\" > ${{ secrets.DEPLOY_PATH }}/.env"
+          ssh $SSH_USER@$SSH_HOST "cd ${{ secrets.DEPLOY_PATH }} && docker compose -f docker-compose.yml up -d --build"

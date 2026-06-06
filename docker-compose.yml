@@ -1,0 +1,56 @@
+services:
+  backend:
+    build:
+      context: backend
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/health >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  frontend:
+    build:
+      context: frontend
+      args:
+        API_URL: ${API_URL}
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  nginx:
+    build:
+      context: nginx
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    ports:
+      - "9679:80"
+
+  db:
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+volumes:
+  postgres_data:
