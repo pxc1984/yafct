@@ -54,15 +54,17 @@ func (s *MemoryStoreTestSuite) TestCardSetSessionFlow() {
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), 2, progress.Total)
 	assert.Equal(s.T(), 0, progress.Passed)
-	assert.Equal(s.T(), "q1", progress.Card.Question)
+	assert.Contains(s.T(), []string{"q1", "q2"}, progress.Card.Question)
+	firstCard := progress.Card.Question
 
 	skipped, err := s.s.SkipSessionCard(setID, sessionID)
 	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), "q2", skipped.Question)
+	assert.Contains(s.T(), []string{"q1", "q2"}, skipped.Question)
+	assert.NotEqual(s.T(), firstCard, skipped.Question)
 
 	next, err := s.s.AdvanceSession(setID, sessionID)
 	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), "q1", next.Question)
+	assert.Equal(s.T(), firstCard, next.Question)
 }
 
 func TestMemoryStoreTestSuite(t *testing.T) {

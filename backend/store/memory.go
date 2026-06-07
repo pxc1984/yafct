@@ -3,6 +3,7 @@ package store
 import (
 	"crypto/sha256"
 	"errors"
+	"math/rand"
 	"sync"
 
 	"github.com/google/uuid"
@@ -134,10 +135,7 @@ func (s *MemoryStore) CreateSession(cardSetID string, _ string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	queue := make([]int, len(cardSet.Cards))
-	for i := range cardSet.Cards {
-		queue[i] = i
-	}
+	queue := rand.Perm(len(cardSet.Cards))
 	s.sessions[sessionID] = memorySession{CardSetID: cardSetID, Total: len(cardSet.Cards), Queue: queue}
 	return sessionID, nil
 }
