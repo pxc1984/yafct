@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 	"github.com/pxc1984/flashcards-trainer/backend/domain/models"
 	"github.com/pxc1984/flashcards-trainer/backend/domain/schema"
 	"gorm.io/driver/postgres"
@@ -176,7 +177,11 @@ func (s *PostgresStore) CreateSession(cardSetID string, createdByIP string) (str
 	if total == 0 {
 		return "", ErrCardSetNotFound
 	}
-	queue := rand.Perm(int(total))
+	perm := rand.Perm(int(total))
+	queue := make(pq.Int64Array, len(perm))
+	for i, v := range perm {
+		queue[i] = int64(v)
+	}
 	for range maxIDGenerationAttempts {
 		sessionID, err := newShortID()
 		if err != nil {

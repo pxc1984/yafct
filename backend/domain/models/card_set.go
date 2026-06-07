@@ -1,5 +1,7 @@
 package models
 
+import "github.com/lib/pq"
+
 type CardSet struct {
 	ID          string `gorm:"primaryKey;size:21"`
 	Title       string `gorm:"size:120;not null;default:''"`
@@ -34,10 +36,10 @@ type Card struct {
 }
 
 type CardSession struct {
-	ID          string `gorm:"primaryKey;size:21"`
-	CardSetID   string `gorm:"index;size:21;not null"`
-	CreatedByIP string `gorm:"size:45;not null;default:''"`
-	TotalCards  int    `gorm:"not null"`
-	Queue       []int  `gorm:"type:integer[]"`
-	Current     int    `gorm:"default:-1"`
+	ID          string        `gorm:"primaryKey;size:21"`
+	CardSetID   string        `gorm:"index;size:21;not null"`
+	CreatedByIP string        `gorm:"size:45;not null;default:''"`
+	TotalCards  int           `gorm:"not null"`
+	Queue       pq.Int64Array `gorm:"type:integer[]"`
+	Current     int           `gorm:"default:-1"`
 }
