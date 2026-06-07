@@ -59,6 +59,7 @@
   let dragOffset = $state(0)
   let isDragging = $state(false)
   let dragStartX = 0
+  let activePointerId: number | null = null
   let isMobile = $state(false)
   let showSwipeHint = $state(false)
   let uploadedImages = $state<Record<string, CardImage>>({})
@@ -418,32 +419,42 @@
       return
     }
 
+    if (activePointerId !== null) {
+      return
+    }
+
+    event.currentTarget instanceof HTMLElement && event.currentTarget.setPointerCapture(event.pointerId)
+
+    activePointerId = event.pointerId
     isDragging = true
     dragStartX = event.clientX
   }
 
   function handlePointerMove(event: PointerEvent) {
-    if (!isDragging) {
+    if (!isDragging || event.pointerId !== activePointerId) {
       return
     }
 
     dragOffset = event.clientX - dragStartX
   }
 
-  async function handlePointerUp() {
-    if (!isDragging) {
+  async function handlePointerUp(event: PointerEvent) {
+    if (!isDragging || event.pointerId !== activePointerId) {
       return
     }
 
-    isDragging = false
+    event.currentTarget instanceof HTMLElement && event.currentTarget.releasePointerCapture(event.pointerId)
 
-    if (dragOffset >= 120) {
+    isDragging = false
+    activePointerId = null
+
+    if (dragOffset >= 96) {
       dragOffset = 0
       await markKnown()
       return
     }
 
-    if (dragOffset <= -120) {
+    if (dragOffset <= -96) {
       dragOffset = 0
       await markUnknown()
       return
@@ -609,7 +620,7 @@
         onMarkUnknown={() => void markUnknown()}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
-        onPointerUp={() => void handlePointerUp()}
+        onPointerUp={(event) => void handlePointerUp(event)}
       />
     {/if}
   </div>

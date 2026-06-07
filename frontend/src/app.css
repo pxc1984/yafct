@@ -153,8 +153,10 @@
   }
 
   [data-swipe-card] {
-    touch-action: pan-x;
+    touch-action: pan-y;
     overscroll-behavior: contain;
     will-change: transform;
+    -webkit-user-select: none;
+    user-select: none;
   }
 }

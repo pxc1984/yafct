@@ -1,6 +1,8 @@
 <script lang="ts">
   import Copy from '@lucide/svelte/icons/copy'
+  import FileText from '@lucide/svelte/icons/file-text'
   import ImagePlus from '@lucide/svelte/icons/image-plus'
+  import List from '@lucide/svelte/icons/list'
   import Plus from '@lucide/svelte/icons/plus'
   import Trash2 from '@lucide/svelte/icons/trash-2'
   import X from '@lucide/svelte/icons/x'
@@ -326,10 +328,16 @@ REMARK:: `
               {/if}
               <Button
                 variant="outline"
-                size="sm"
+                size="icon-sm"
                 onclick={() => setPreviewMode(previewMode === 'text' ? 'list' : 'text')}
+                aria-label={previewMode === 'text' ? 'Показать список карточек' : 'Показать исходный текст'}
+                title={previewMode === 'text' ? 'Показать список карточек' : 'Показать исходный текст'}
               >
-                {previewMode === 'text' ? 'Показать список' : 'Показать текст'}
+                {#if previewMode === 'text'}
+                  <List class="size-4" />
+                {:else}
+                  <FileText class="size-4" />
+                {/if}
               </Button>
             </div>
           </div>
