@@ -52,12 +52,6 @@
     onPointerUp: (event: PointerEvent) => void | Promise<void>
   } = $props()
 
-  let fogRevealed = $state(false)
-
-  $effect(() => {
-    trainingState?.card
-    fogRevealed = false
-  })
 </script>
 
 <section class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 overflow-x-hidden pb-28 sm:pb-8">
@@ -120,17 +114,22 @@
               <p class="mb-2 text-sm font-medium text-muted-foreground">Ответ</p>
               <div
                 class="group relative cursor-pointer overflow-hidden rounded-lg"
-                onclick={() => fogRevealed = true}
+                onclick={onToggleAnswer}
                 role="button"
                 tabindex="0"
-                onkeydown={(e) => e.key === 'Enter' && (fogRevealed = true)}
+                onkeydown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onToggleAnswer()
+                  }
+                }}
               >
-                {#if !fogRevealed}
-                  <div class="pointer-events-none absolute inset-0 z-10 rounded-lg bg-gradient-to-br from-muted/20 via-background/10 to-muted/20 opacity-80 transition-opacity duration-500 group-hover:opacity-0 group-focus-visible:opacity-0">
+                {#if !isAnswerVisible}
+                  <div class="pointer-events-none absolute inset-0 z-10 rounded-lg bg-gradient-to-br from-muted/20 via-background/10 to-muted/20 opacity-80 transition-opacity duration-500">
                     <div class="shimmer size-full" />
                   </div>
                 {/if}
-                <div class="fog-text" class:revealed={fogRevealed}>
+                <div class="fog-text" class:revealed={isAnswerVisible}>
                   <RichMathText text={trainingState.card.answer} class="text-lg leading-relaxed" />
                   {#if trainingState.card.answerImages.length > 0}
                     <div class="mt-4 grid gap-3 sm:grid-cols-2">
@@ -203,8 +202,6 @@
     filter: blur(6px);
     transition: filter 0.5s ease;
   }
-  .group:hover .fog-text,
-  .group:focus-visible .fog-text,
   .fog-text.revealed {
     filter: blur(0);
   }
