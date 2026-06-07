@@ -1,12 +1,7 @@
 <script lang="ts">
-  import ArrowRight from '@lucide/svelte/icons/arrow-right'
-  import ChevronDown from '@lucide/svelte/icons/chevron-down'
-  import Clock3 from '@lucide/svelte/icons/clock-3'
   import Copy from '@lucide/svelte/icons/copy'
   import FileText from '@lucide/svelte/icons/file-text'
   import ImagePlus from '@lucide/svelte/icons/image-plus'
-  import Layers3 from '@lucide/svelte/icons/layers-3'
-  import Link2 from '@lucide/svelte/icons/link-2'
   import List from '@lucide/svelte/icons/list'
   import Plus from '@lucide/svelte/icons/plus'
   import Sparkles from '@lucide/svelte/icons/sparkles'
@@ -15,7 +10,6 @@
 
   import type { CardData, CardImage } from '$lib/api/flashcards'
 
-  import { Badge } from '$lib/components/ui/badge'
   import { Button } from '$lib/components/ui/button'
 
   type RecentSession = {
@@ -40,12 +34,10 @@
     createStatus,
     copyState,
     loadLinkError,
-    formatDate,
     onCopyPrompt,
     onLoadLink,
     onUploadImage,
     onCreateSet,
-    onNavigate,
   }: {
     promptText: string
     sourceText: string
@@ -75,12 +67,6 @@ REMARK:: Удобно для инкапсуляции состояния.
 QUESTION:: Что возвращает выражение $2^3$?
 ANSWER:: $8$
 REMARK:: `
-
-  const quickActions = [
-    { label: 'Новый набор', section: 'composer' },
-    { label: 'Шаблон', section: 'prompt' },
-    { label: 'История', section: 'history' },
-  ] as const
 
   const starterExamples = [
     {
@@ -112,7 +98,6 @@ REMARK:: `
   let promptSection: HTMLElement | null = null
   let composerSection: HTMLElement | null = null
   let historySection: HTMLElement | null = null
-  let isSidebarOpen = $state(false)
 
   function formatCardData(cards: CardData[]) {
     return cards
@@ -307,7 +292,6 @@ REMARK:: `
       section === 'prompt' ? promptSection : section === 'composer' ? composerSection : historySection
 
     target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    isSidebarOpen = false
   }
 
   function applyStarterExample(example: (typeof starterExamples)[number]) {
@@ -332,14 +316,11 @@ REMARK:: `
     <div class="flex min-h-0 flex-col rounded-[2rem] border border-border/70 bg-background/60 p-5 sm:p-6 xl:overflow-hidden">
       <div class="mb-5 flex flex-wrap items-start justify-between gap-4">
         <div class="space-y-2">
-          <div>
-            <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">Собери новый набор карточек</h2>
-            <p class="mt-1 max-w-2xl text-sm text-muted-foreground">Большая рабочая зона без лишних технических карточек: слева метаданные, справа контент и визуальный список.</p>
-          </div>
+          <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">Собирание нового набора карточек</h2>
         </div>
-        <div bind:this={promptSection} class="flex items-center gap-2 rounded-full border border-border/70 px-3 py-2 text-sm text-muted-foreground">
+        <div bind:this={promptSection} class="flex items-center gap-2 rounded-full border border-border/70 px-3 py-2 w-full text-sm text-muted-foreground">
           <Sparkles class="size-4" />
-          <span class="max-w-52 truncate">Шаблон для генерации карточек</span>
+          <span class="w-full truncate">Промпт для ИИ</span>
           <Button variant="ghost" size="icon-sm" onclick={onCopyPrompt} aria-label="Скопировать промпт">
             <Copy class="size-4" />
           </Button>
@@ -397,11 +378,6 @@ REMARK:: `
               placeholder="Игорь <@igamamaev>"
             />
           </label>
-
-          <div class="rounded-[1.5rem] border border-border/70 p-4 text-sm text-muted-foreground">
-            <p class="mb-2 font-medium text-foreground">Промпт</p>
-            <pre class="max-h-28 overflow-auto whitespace-pre-wrap">{promptText}</pre>
-          </div>
         </div>
 
         <div class="flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-muted/10 p-4">
