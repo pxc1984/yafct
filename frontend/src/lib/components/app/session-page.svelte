@@ -65,9 +65,6 @@
           <Copy class="size-4" />
         </Button>
       {/if}
-      <Button variant="outline" size="icon-sm" onclick={() => onNavigate(`/${cardsetId}`)} aria-label="К сессиям" title="К сессиям">
-        <ArrowLeft class="size-4" />
-      </Button>
     </div>
   </div>
 

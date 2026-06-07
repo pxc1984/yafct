@@ -59,6 +59,8 @@
   let sessionLinkCopyState = $state<'idle' | 'done'>('idle')
   let loadLinkError = $state('')
 
+  let sidebarCopyState = $state<'idle' | 'done'>('idle')
+
   let sessions = $state<SessionRecord[]>([])
   let recentSessions = $state<RecentSession[]>([])
   let sessionsLoading = $state(false)
@@ -85,6 +87,20 @@
     }
 
     return Math.min(100, Math.round((trainingState.passed / trainingState.total) * 100))
+  })
+
+  const allCardSets = $derived.by(() => {
+    const meta = readStoredCardsetMeta()
+    const map: Record<string, { id: string; title: string; author: string }> = {}
+    for (const [id, m] of Object.entries(meta)) {
+      map[id] = { id, title: m.title || id, author: m.author ?? '' }
+    }
+    for (const s of recentSessions) {
+      if (!map[s.cardsetId]) {
+        map[s.cardsetId] = { id: s.cardsetId, title: s.cardsetTitle, author: s.cardsetAuthor }
+      }
+    }
+    return Object.values(map).sort((a, b) => a.title.localeCompare(b.title))
   })
 
   const hasActiveCard = $derived(Boolean(trainingState?.card))
@@ -131,6 +147,15 @@
 
       sessionLinkCopyState = 'idle'
     }, 1500)
+  }
+
+  async function copySidebarLink() {
+    let path = '/'
+    if (route.name === 'cardset') path = `/${route.cardsetId}`
+    else if (route.name === 'session') path = `/${route.cardsetId}/${route.sessionId}`
+    await navigator.clipboard.writeText(buildAbsoluteUrl(path))
+    sidebarCopyState = 'done'
+    window.setTimeout(() => { sidebarCopyState = 'idle' }, 1500)
   }
 
   function loadLink() {
@@ -679,7 +704,17 @@
 </script>
 
 <Sidebar.Provider>
-  <AppSidebar/>
+  <AppSidebar
+    cardSets={allCardSets}
+    recentSessions={recentSessions}
+    activeCardsetId={activeCardsetId}
+    activeSessionId={activeSessionId}
+    copyLinkState={sidebarCopyState}
+    onCreateCardSet={() => navigate('/')}
+    onCopyLink={() => void copySidebarLink()}
+    onNavigate={navigate}
+    {formatDate}
+  />
   <main class="min-h-screen bg-background text-foreground w-full">
     <Sidebar.Trigger/>
     <div class="mx-auto flex min-h-screen w-full flex-col px-4 py-6 sm:px-6 sm:py-8">
