@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"log/slog"
+	"math/rand"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -175,11 +176,8 @@ func (s *PostgresStore) CreateSession(cardSetID string, createdByIP string) (str
 	if total == 0 {
 		return "", ErrCardSetNotFound
 	}
-	queue := make([]int, int(total))
-	for i := range queue {
-		queue[i] = i
-	}
-	encodedQueue, err := encodeSessionQueue(queue)
+	queue := rand.Perm(int(total))
+	encodedQueue, err := encodeSessionQueue(queue, -1)
 	if err != nil {
 		return "", err
 	}
@@ -221,13 +219,24 @@ func (s *PostgresStore) GetSessionProgress(cardSetID string, sessionID string) (
 		return nil, err
 	}
 	var current *schema.Card
-	queue, err := decodeSessionQueue(session.Queue)
+	queue, currentIdx, err := decodeSessionQueue(session.Queue)
 	if err != nil {
 		return nil, err
 	}
 	if len(queue) > 0 {
+		if currentIdx == -1 {
+			currentIdx = rand.Intn(len(queue))
+			encodedQueue, err := encodeSessionQueue(queue, currentIdx)
+			if err != nil {
+				return nil, err
+			}
+			session.Queue = encodedQueue
+			if err := s.db.Save(&session).Error; err != nil {
+				return nil, err
+			}
+		}
 		var card models.Card
-		if err := s.db.First(&card, "card_set_id = ? AND position = ?", cardSetID, queue[0]).Error; err != nil {
+		if err := s.db.First(&card, "card_set_id = ? AND position = ?", cardSetID, queue[currentIdx]).Error; err != nil {
 			return nil, err
 		}
 		current = &schema.Card{ID: card.ID, CardData: schema.CardData{Question: card.Question, Answer: card.Answer, Remarks: card.Remarks, QuestionImages: toSchemaImages(card.QuestionImages), AnswerImages: toSchemaImages(card.AnswerImages)}}
@@ -252,15 +261,30 @@ func (s *PostgresStore) AdvanceSession(cardSetID string, sessionID string) (*sch
 		}
 		return nil, err
 	}
-	queue, err := decodeSessionQueue(session.Queue)
+	queue, currentIdx, err := decodeSessionQueue(session.Queue)
 	if err != nil {
 		return nil, err
 	}
 	if len(queue) == 0 {
 		return nil, errors.New("no cards available")
 	}
-	queue = queue[1:]
-	encodedQueue, err := encodeSessionQueue(queue)
+	if currentIdx == -1 {
+		currentIdx = rand.Intn(len(queue))
+	}
+	queue = append(queue[:currentIdx], queue[currentIdx+1:]...)
+	if len(queue) == 0 {
+		encodedQueue, err := encodeSessionQueue(queue, -1)
+		if err != nil {
+			return nil, err
+		}
+		session.Queue = encodedQueue
+		if err := s.db.Save(&session).Error; err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+	nextIdx := rand.Intn(len(queue))
+	encodedQueue, err := encodeSessionQueue(queue, nextIdx)
 	if err != nil {
 		return nil, err
 	}
@@ -268,11 +292,8 @@ func (s *PostgresStore) AdvanceSession(cardSetID string, sessionID string) (*sch
 	if err := s.db.Save(&session).Error; err != nil {
 		return nil, err
 	}
-	if len(queue) == 0 {
-		return nil, nil
-	}
 	var card models.Card
-	if err := s.db.First(&card, "card_set_id = ? AND position = ?", cardSetID, queue[0]).Error; err != nil {
+	if err := s.db.First(&card, "card_set_id = ? AND position = ?", cardSetID, queue[nextIdx]).Error; err != nil {
 		return nil, err
 	}
 	return &schema.Card{ID: card.ID, CardData: schema.CardData{Question: card.Question, Answer: card.Answer, Remarks: card.Remarks, QuestionImages: toSchemaImages(card.QuestionImages), AnswerImages: toSchemaImages(card.AnswerImages)}}, nil
@@ -286,26 +307,24 @@ func (s *PostgresStore) SkipSessionCard(cardSetID string, sessionID string) (*sc
 		}
 		return nil, err
 	}
-	queue, err := decodeSessionQueue(session.Queue)
+	queue, _, err := decodeSessionQueue(session.Queue)
 	if err != nil {
 		return nil, err
 	}
 	if len(queue) == 0 {
 		return nil, errors.New("no cards available")
 	}
-	if len(queue) > 1 {
-		queue = append(queue[1:], queue[0])
-		encodedQueue, err := encodeSessionQueue(queue)
-		if err != nil {
-			return nil, err
-		}
-		session.Queue = encodedQueue
-		if err := s.db.Save(&session).Error; err != nil {
-			return nil, err
-		}
+	nextIdx := rand.Intn(len(queue))
+	encodedQueue, err := encodeSessionQueue(queue, nextIdx)
+	if err != nil {
+		return nil, err
+	}
+	session.Queue = encodedQueue
+	if err := s.db.Save(&session).Error; err != nil {
+		return nil, err
 	}
 	var card models.Card
-	if err := s.db.First(&card, "card_set_id = ? AND position = ?", cardSetID, queue[0]).Error; err != nil {
+	if err := s.db.First(&card, "card_set_id = ? AND position = ?", cardSetID, queue[nextIdx]).Error; err != nil {
 		return nil, err
 	}
 	return &schema.Card{ID: card.ID, CardData: schema.CardData{Question: card.Question, Answer: card.Answer, Remarks: card.Remarks, QuestionImages: toSchemaImages(card.QuestionImages), AnswerImages: toSchemaImages(card.AnswerImages)}}, nil

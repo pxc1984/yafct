@@ -23,6 +23,7 @@ type memorySession struct {
 	CardSetID string
 	Total     int
 	Queue     []int
+	Current   int // index into Queue; -1 = not yet selected
 }
 
 func (s *MemoryStore) Ready() bool {
@@ -136,13 +137,13 @@ func (s *MemoryStore) CreateSession(cardSetID string, _ string) (string, error) 
 		return "", err
 	}
 	queue := rand.Perm(len(cardSet.Cards))
-	s.sessions[sessionID] = memorySession{CardSetID: cardSetID, Total: len(cardSet.Cards), Queue: queue}
+	s.sessions[sessionID] = memorySession{CardSetID: cardSetID, Total: len(cardSet.Cards), Queue: queue, Current: -1}
 	return sessionID, nil
 }
 
 func (s *MemoryStore) GetSessionProgress(cardSetID string, sessionID string) (*schema.SessionProgressResponse, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	session, ok := s.sessions[sessionID]
 	if !ok || session.CardSetID != cardSetID {
 		return nil, ErrSessionNotFound
@@ -154,7 +155,11 @@ func (s *MemoryStore) GetSessionProgress(cardSetID string, sessionID string) (*s
 	passed := session.Total - len(session.Queue)
 	var current *schema.Card
 	if len(session.Queue) > 0 {
-		current = new(cardSet.Cards[session.Queue[0]])
+		if session.Current == -1 {
+			session.Current = rand.Intn(len(session.Queue))
+			s.sessions[sessionID] = session
+		}
+		current = new(cardSet.Cards[session.Queue[session.Current]])
 	}
 	return &schema.SessionProgressResponse{Total: session.Total, Passed: passed, CardSetMetadata: cardSet.CardSetMetadata, Card: current}, nil
 }
@@ -173,12 +178,18 @@ func (s *MemoryStore) AdvanceSession(cardSetID string, sessionID string) (*schem
 	if len(session.Queue) == 0 {
 		return nil, errors.New("no cards available")
 	}
-	session.Queue = session.Queue[1:]
+	if session.Current == -1 {
+		session.Current = rand.Intn(len(session.Queue))
+	}
+	session.Queue = append(session.Queue[:session.Current], session.Queue[session.Current+1:]...)
+	session.Current = -1
 	s.sessions[sessionID] = session
 	if len(session.Queue) == 0 {
 		return nil, nil
 	}
-	return new(cardSet.Cards[session.Queue[0]]), nil
+	session.Current = rand.Intn(len(session.Queue))
+	s.sessions[sessionID] = session
+	return new(cardSet.Cards[session.Queue[session.Current]]), nil
 }
 
 func (s *MemoryStore) SkipSessionCard(cardSetID string, sessionID string) (*schema.Card, error) {
@@ -195,10 +206,9 @@ func (s *MemoryStore) SkipSessionCard(cardSetID string, sessionID string) (*sche
 	if len(session.Queue) == 0 {
 		return nil, errors.New("no cards available")
 	}
-	if len(session.Queue) > 1 {
-		current := session.Queue[0]
-		session.Queue = append(session.Queue[1:], current)
-		s.sessions[sessionID] = session
-	}
-	return new(cardSet.Cards[session.Queue[0]]), nil
+	session.Current = -1
+	s.sessions[sessionID] = session
+	session.Current = rand.Intn(len(session.Queue))
+	s.sessions[sessionID] = session
+	return new(cardSet.Cards[session.Queue[session.Current]]), nil
 }

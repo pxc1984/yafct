@@ -55,16 +55,34 @@ func (s *MemoryStoreTestSuite) TestCardSetSessionFlow() {
 	assert.Equal(s.T(), 2, progress.Total)
 	assert.Equal(s.T(), 0, progress.Passed)
 	assert.Contains(s.T(), []string{"q1", "q2"}, progress.Card.Question)
-	firstCard := progress.Card.Question
 
-	skipped, err := s.s.SkipSessionCard(setID, sessionID)
+	skipCard, err := s.s.SkipSessionCard(setID, sessionID)
 	assert.NoError(s.T(), err)
-	assert.Contains(s.T(), []string{"q1", "q2"}, skipped.Question)
-	assert.NotEqual(s.T(), firstCard, skipped.Question)
+	assert.Contains(s.T(), []string{"q1", "q2"}, skipCard.Question)
 
-	next, err := s.s.AdvanceSession(setID, sessionID)
+	progress, err = s.s.GetSessionProgress(setID, sessionID)
 	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), firstCard, next.Question)
+	assert.Equal(s.T(), 0, progress.Passed)
+
+	advanceCard, err := s.s.AdvanceSession(setID, sessionID)
+	assert.NoError(s.T(), err)
+	assert.NotNil(s.T(), advanceCard)
+	assert.Contains(s.T(), []string{"q1", "q2"}, advanceCard.Question)
+
+	progress, err = s.s.GetSessionProgress(setID, sessionID)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), 1, progress.Passed)
+	assert.NotNil(s.T(), progress.Card)
+	assert.Contains(s.T(), []string{"q1", "q2"}, progress.Card.Question)
+
+	lastCard, err := s.s.AdvanceSession(setID, sessionID)
+	assert.NoError(s.T(), err)
+	assert.Nil(s.T(), lastCard)
+
+	progress, err = s.s.GetSessionProgress(setID, sessionID)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), 2, progress.Passed)
+	assert.Nil(s.T(), progress.Card)
 }
 
 func TestMemoryStoreTestSuite(t *testing.T) {
