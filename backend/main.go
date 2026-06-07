@@ -42,9 +42,9 @@ func main() {
 	router.Use(gin.Recovery())
 	router.Use(func(c *gin.Context) {
 		if c.Request.URL.Path == "/api/health" {
-			slog.Debug("request", "method", c.Request.Method, "path", c.Request.URL.Path, "status", c.Writer.Status())
+			slog.Debug("request", "addr", c.Request.RemoteAddr, "method", c.Request.Method, "path", c.Request.URL.Path, "status", c.Writer.Status())
 		} else {
-			slog.Info("request", "method", c.Request.Method, "path", c.Request.URL.Path, "status", c.Writer.Status())
+			slog.Info("request", "addr", c.Request.RemoteAddr, "method", c.Request.Method, "path", c.Request.URL.Path, "status", c.Writer.Status())
 		}
 		c.Next()
 	})
