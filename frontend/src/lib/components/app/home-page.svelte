@@ -312,7 +312,7 @@ REMARK:: `
 </script>
 
 <section class="mx-auto flex w-full flex-1 items-start">
-  <div class="grid w-full gap-5 xl:min-h-[calc(100vh-5rem)] xl:grid-cols-[18rem_minmax(0,1fr)] xl:overflow-hidden">
+  <div class="grid w-full gap-5 xl:min-h-[calc(100vh-5rem)] xl:overflow-hidden">
     <div class="flex min-h-0 flex-col rounded-[2rem] border border-border/70 bg-background/60 p-5 sm:p-6 xl:overflow-hidden">
       <div class="mb-5 flex flex-wrap items-start justify-between gap-4">
         <div class="space-y-2">
