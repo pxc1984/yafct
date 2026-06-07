@@ -3,7 +3,6 @@ package store
 import (
 	"testing"
 
-	"github.com/pxc1984/flashcards-trainer/backend/domain/schema"
 	"github.com/pxc1984/flashcards-trainer/backend/store/interfaces"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -28,61 +27,7 @@ func (s *MemoryStoreTestSuite) TestAdminPassword() {
 }
 
 func (s *MemoryStoreTestSuite) TestCardSetSessionFlow() {
-	image, err := s.s.CreateUploadedImage("image/png", "aGVsbG8=", "127.0.0.1")
-	assert.NoError(s.T(), err)
-
-	setID, err := s.s.CreateCardSet(schema.CreateCardSetRequest{
-		CardSetMetadata: schema.CardSetMetadata{Title: "set title", Description: "set description", Author: "set author"},
-		Cards: []schema.CardData{
-			{Question: "q1", Answer: "a1", QuestionImages: []schema.CardImage{*image}},
-			{Question: "q2", Answer: "a2"},
-		},
-	}, "127.0.0.1")
-	assert.NoError(s.T(), err)
-
-	cardSet, err := s.s.GetCardSet(setID)
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), "set title", cardSet.Title)
-	assert.Len(s.T(), cardSet.Cards, 2)
-	assert.Len(s.T(), cardSet.Cards[0].QuestionImages, 1)
-	assert.Equal(s.T(), image.ID, cardSet.Cards[0].QuestionImages[0].ID)
-
-	sessionID, err := s.s.CreateSession(setID, "127.0.0.1")
-	assert.NoError(s.T(), err)
-
-	progress, err := s.s.GetSessionProgress(setID, sessionID)
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), 2, progress.Total)
-	assert.Equal(s.T(), 0, progress.Passed)
-	assert.Contains(s.T(), []string{"q1", "q2"}, progress.Card.Question)
-
-	skipCard, err := s.s.SkipSessionCard(setID, sessionID)
-	assert.NoError(s.T(), err)
-	assert.Contains(s.T(), []string{"q1", "q2"}, skipCard.Question)
-
-	progress, err = s.s.GetSessionProgress(setID, sessionID)
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), 0, progress.Passed)
-
-	advanceCard, err := s.s.AdvanceSession(setID, sessionID)
-	assert.NoError(s.T(), err)
-	assert.NotNil(s.T(), advanceCard)
-	assert.Contains(s.T(), []string{"q1", "q2"}, advanceCard.Question)
-
-	progress, err = s.s.GetSessionProgress(setID, sessionID)
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), 1, progress.Passed)
-	assert.NotNil(s.T(), progress.Card)
-	assert.Contains(s.T(), []string{"q1", "q2"}, progress.Card.Question)
-
-	lastCard, err := s.s.AdvanceSession(setID, sessionID)
-	assert.NoError(s.T(), err)
-	assert.Nil(s.T(), lastCard)
-
-	progress, err = s.s.GetSessionProgress(setID, sessionID)
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), 2, progress.Passed)
-	assert.Nil(s.T(), progress.Card)
+	testCardSetSessionFlow(s.T(), s.s)
 }
 
 func TestMemoryStoreTestSuite(t *testing.T) {

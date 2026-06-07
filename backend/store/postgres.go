@@ -177,16 +177,12 @@ func (s *PostgresStore) CreateSession(cardSetID string, createdByIP string) (str
 		return "", ErrCardSetNotFound
 	}
 	queue := rand.Perm(int(total))
-	encodedQueue, err := encodeSessionQueue(queue, -1)
-	if err != nil {
-		return "", err
-	}
 	for range maxIDGenerationAttempts {
 		sessionID, err := newShortID()
 		if err != nil {
 			return "", err
 		}
-		session := models.CardSession{ID: sessionID, CardSetID: cardSetID, CreatedByIP: createdByIP, TotalCards: int(total), Queue: encodedQueue}
+		session := models.CardSession{ID: sessionID, CardSetID: cardSetID, CreatedByIP: createdByIP, TotalCards: int(total), Queue: queue, Current: -1}
 		if err := s.db.Create(&session).Error; err != nil {
 			if isUniqueViolation(err) {
 				continue
@@ -219,24 +215,16 @@ func (s *PostgresStore) GetSessionProgress(cardSetID string, sessionID string) (
 		return nil, err
 	}
 	var current *schema.Card
-	queue, currentIdx, err := decodeSessionQueue(session.Queue)
-	if err != nil {
-		return nil, err
-	}
+	queue := session.Queue
 	if len(queue) > 0 {
-		if currentIdx == -1 {
-			currentIdx = rand.Intn(len(queue))
-			encodedQueue, err := encodeSessionQueue(queue, currentIdx)
-			if err != nil {
-				return nil, err
-			}
-			session.Queue = encodedQueue
+		if session.Current == -1 || session.Current >= len(queue) {
+			session.Current = rand.Intn(len(queue))
 			if err := s.db.Save(&session).Error; err != nil {
 				return nil, err
 			}
 		}
 		var card models.Card
-		if err := s.db.First(&card, "card_set_id = ? AND position = ?", cardSetID, queue[currentIdx]).Error; err != nil {
+		if err := s.db.First(&card, "card_set_id = ? AND position = ?", cardSetID, queue[session.Current]).Error; err != nil {
 			return nil, err
 		}
 		current = &schema.Card{ID: card.ID, CardData: schema.CardData{Question: card.Question, Answer: card.Answer, Remarks: card.Remarks, QuestionImages: toSchemaImages(card.QuestionImages), AnswerImages: toSchemaImages(card.AnswerImages)}}
@@ -261,34 +249,24 @@ func (s *PostgresStore) AdvanceSession(cardSetID string, sessionID string) (*sch
 		}
 		return nil, err
 	}
-	queue, currentIdx, err := decodeSessionQueue(session.Queue)
-	if err != nil {
-		return nil, err
-	}
+	queue := session.Queue
 	if len(queue) == 0 {
 		return nil, errors.New("no cards available")
 	}
-	if currentIdx == -1 {
-		currentIdx = rand.Intn(len(queue))
+	if session.Current == -1 || session.Current >= len(queue) {
+		session.Current = rand.Intn(len(queue))
 	}
-	queue = append(queue[:currentIdx], queue[currentIdx+1:]...)
+	queue = append(queue[:session.Current], queue[session.Current+1:]...)
+	session.Queue = queue
+	session.Current = -1
 	if len(queue) == 0 {
-		encodedQueue, err := encodeSessionQueue(queue, -1)
-		if err != nil {
-			return nil, err
-		}
-		session.Queue = encodedQueue
 		if err := s.db.Save(&session).Error; err != nil {
 			return nil, err
 		}
 		return nil, nil
 	}
 	nextIdx := rand.Intn(len(queue))
-	encodedQueue, err := encodeSessionQueue(queue, nextIdx)
-	if err != nil {
-		return nil, err
-	}
-	session.Queue = encodedQueue
+	session.Current = nextIdx
 	if err := s.db.Save(&session).Error; err != nil {
 		return nil, err
 	}
@@ -307,19 +285,12 @@ func (s *PostgresStore) SkipSessionCard(cardSetID string, sessionID string) (*sc
 		}
 		return nil, err
 	}
-	queue, _, err := decodeSessionQueue(session.Queue)
-	if err != nil {
-		return nil, err
-	}
+	queue := session.Queue
 	if len(queue) == 0 {
 		return nil, errors.New("no cards available")
 	}
 	nextIdx := rand.Intn(len(queue))
-	encodedQueue, err := encodeSessionQueue(queue, nextIdx)
-	if err != nil {
-		return nil, err
-	}
-	session.Queue = encodedQueue
+	session.Current = nextIdx
 	if err := s.db.Save(&session).Error; err != nil {
 		return nil, err
 	}

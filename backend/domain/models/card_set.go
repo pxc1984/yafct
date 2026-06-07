@@ -38,5 +38,6 @@ type CardSession struct {
 	CardSetID   string `gorm:"index;size:21;not null"`
 	CreatedByIP string `gorm:"size:45;not null;default:''"`
 	TotalCards  int    `gorm:"not null"`
-	Queue       string `gorm:"type:text;not null"`
+	Queue       []int  `gorm:"type:integer[]"`
+	Current     int    `gorm:"default:-1"`
 }

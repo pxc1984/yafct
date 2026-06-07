@@ -10,6 +10,20 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: flashcards_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +36,8 @@ jobs:
           cache-dependency-path: backend/go.sum
 
       - name: Run tests
+        env:
+          TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/flashcards_test?sslmode=disable
         run: go test ./...
 
   test-frontend:
