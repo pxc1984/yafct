@@ -90,10 +90,6 @@
       data-dragging={isDragging}
       data-swipe-card
       onpointerdown={onPointerDown}
-      onpointermove={onPointerMove}
-      onpointerup={onPointerUp}
-      onpointercancel={onPointerUp}
-      onlostpointercapture={onPointerUp}
     >
       <div class="h-full">
         <Card.Content class="space-y-6">
