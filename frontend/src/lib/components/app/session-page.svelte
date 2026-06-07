@@ -121,7 +121,15 @@
                   </div>
                 {/if}
               {:else}
-                <p class="text-lg text-muted-foreground">Нажми показать ответ или пробел.</p>
+                <button
+                  class="group relative w-full cursor-pointer overflow-hidden rounded-lg text-left [background:none] [border:none] [padding:0]"
+                  onclick={onToggleAnswer}
+                >
+                  <div class="pointer-events-none absolute inset-0 z-10 rounded-lg bg-gradient-to-br from-muted/20 via-background/10 to-muted/20 opacity-80 transition-opacity duration-500 group-hover:opacity-0 group-focus-visible:opacity-0">
+                    <div class="shimmer size-full" />
+                  </div>
+                  <p class="fog-text text-lg text-muted-foreground">Нажми показать ответ или пробел.</p>
+                </button>
               {/if}
             </div>
           {:else}
@@ -184,3 +192,35 @@
     </div>
   {/if}
 </section>
+
+<style>
+  .fog-text {
+    filter: blur(6px);
+    transition: filter 0.5s ease;
+  }
+  .group:hover .fog-text,
+  .group:focus-visible .fog-text {
+    filter: blur(0);
+  }
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: -50%;
+    background: linear-gradient(
+      135deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.06) 50%,
+      transparent 70%
+    );
+    background-size: 200% 200%;
+    animation: fog-shimmer 4s ease-in-out infinite;
+  }
+  @keyframes fog-shimmer {
+    0%, 100% { background-position: 0% 0%; }
+    50% { background-position: 100% 100%; }
+  }
+</style>
