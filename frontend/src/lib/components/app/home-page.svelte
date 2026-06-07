@@ -329,81 +329,9 @@ REMARK:: `
 
 <section class="mx-auto flex w-full flex-1 items-start">
   <div class="grid w-full gap-5 xl:min-h-[calc(100vh-5rem)] xl:grid-cols-[18rem_minmax(0,1fr)] xl:overflow-hidden">
-    <div class="xl:hidden">
-      <Button
-        variant="outline"
-        class="w-full justify-between"
-        onclick={() => {
-          isSidebarOpen = !isSidebarOpen
-        }}
-        aria-expanded={isSidebarOpen}
-        aria-controls="home-sidebar"
-      >
-        <span class="flex items-center gap-2">
-          <Layers3 class="size-4" />
-          Панель навигации
-        </span>
-        <ChevronDown class={`size-4 transition-transform ${isSidebarOpen ? 'rotate-180' : ''}`} />
-      </Button>
-    </div>
-
-    <aside id="home-sidebar" class={`${isSidebarOpen ? 'block' : 'hidden'} xl:flex xl:h-full xl:flex-col xl:overflow-hidden`}>
-      <div class="flex h-full flex-col gap-5 rounded-[2rem] border border-border/70 bg-gradient-to-b from-background to-muted/30 p-5 xl:min-h-0">
-        <div class="space-y-3">
-          <Badge variant="outline" class="w-fit">Workspace</Badge>
-          <div>
-            <h1 class="text-2xl font-semibold tracking-tight">Flashcards Trainer</h1>
-            <p class="mt-1 text-sm text-muted-foreground">Один экран для создания, истории и быстрого старта.</p>
-          </div>
-        </div>
-
-        <nav class="space-y-2">
-          {#each quickActions as action}
-            <Button variant="ghost" class="w-full justify-start rounded-2xl px-3" onclick={() => scrollToSection(action.section)}>
-              {action.label}
-            </Button>
-          {/each}
-          <Button class="w-full justify-start gap-2 rounded-2xl" onclick={onLoadLink}>
-            <Link2 class="size-4" />
-            Открыть по ссылке
-          </Button>
-        </nav>
-
-        <div bind:this={historySection} class="min-h-0 flex-1 overflow-hidden rounded-[1.75rem] border border-border/70 bg-background/70 p-4">
-          <div class="mb-3 flex items-center gap-2">
-            <Clock3 class="size-4 text-muted-foreground" />
-            <p class="text-sm font-medium">Недавние сессии</p>
-          </div>
-
-          <div class="flex max-h-full flex-col gap-2 overflow-auto pr-1">
-            {#if recentSessions.length === 0}
-              <p class="text-sm text-muted-foreground">История появится после первой начатой сессии.</p>
-            {:else}
-              {#each recentSessions as session (session.cardsetId + session.id)}
-                <button
-                  class="flex w-full items-center justify-between rounded-2xl border border-border/70 px-3 py-3 text-left transition hover:bg-muted/50"
-                  onclick={() => onNavigate(`/${session.cardsetId}/${session.id}`)}
-                >
-                  <span class="min-w-0">
-                    <span class="block truncate text-sm font-medium">{session.cardsetTitle}</span>
-                    {#if session.cardsetAuthor}
-                      <span class="block truncate text-xs text-muted-foreground">Автор: {session.cardsetAuthor}</span>
-                    {/if}
-                    <span class="block truncate text-xs text-muted-foreground">Сессия {session.id} · {formatDate(session.updatedAt)}</span>
-                  </span>
-                  <ArrowRight class="size-4 shrink-0 text-muted-foreground" />
-                </button>
-              {/each}
-            {/if}
-          </div>
-        </div>
-      </div>
-    </aside>
-
     <div class="flex min-h-0 flex-col rounded-[2rem] border border-border/70 bg-background/60 p-5 sm:p-6 xl:overflow-hidden">
       <div class="mb-5 flex flex-wrap items-start justify-between gap-4">
         <div class="space-y-2">
-          <Badge variant="secondary" class="w-fit rounded-full px-3 py-1 text-xs">Создание набора</Badge>
           <div>
             <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">Собери новый набор карточек</h2>
             <p class="mt-1 max-w-2xl text-sm text-muted-foreground">Большая рабочая зона без лишних технических карточек: слева метаданные, справа контент и визуальный список.</p>

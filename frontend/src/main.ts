@@ -1,12 +1,12 @@
-import { mount } from 'svelte'
-import './app.css'
-import App from './App.svelte'
+import { mount } from "svelte";
+import "./app.css";
+import App from "./App.svelte";
 
-document.documentElement.classList.add('dark')
-document.documentElement.style.colorScheme = 'dark'
+document.documentElement.classList.add("dark");
+document.documentElement.style.colorScheme = "dark";
 
 const app = mount(App, {
-  target: document.getElementById('app')!,
-})
+  target: document.getElementById("app")!,
+});
 
-export default app
+export default app;

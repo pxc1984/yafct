@@ -170,9 +170,9 @@ pnpm dlx shadcn-svelte@latest add <component-name> -o
 Import generated UI components from their package-style entrypoints:
 
 ```ts
-import { Button } from '$lib/components/ui/button'
-import * as Card from '$lib/components/ui/card'
-import * as Avatar from '$lib/components/ui/avatar'
+import { Button } from "$lib/components/ui/button";
+import * as Card from "$lib/components/ui/card";
+import * as Avatar from "$lib/components/ui/avatar";
 ```
 
 Use `$lib` for shared code under `src/lib`.
@@ -195,15 +195,15 @@ Behavior:
 Axios client:
 
 ```ts
-import { api } from '$lib/api/client'
+import { api } from "$lib/api/client";
 ```
 
 Example endpoint helper:
 
 ```ts
-import { getHealth } from '$lib/api/health'
+import { getHealth } from "$lib/api/health";
 
-const health = await getHealth()
+const health = await getHealth();
 ```
 
 That helper calls:
