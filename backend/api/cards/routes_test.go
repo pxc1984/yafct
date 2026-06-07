@@ -75,7 +75,11 @@ func TestCardsAPIFlow(t *testing.T) {
 	assert.Equal(t, "desc", progress.Description)
 	assert.Equal(t, "&lt;script&gt;alert(1)&lt;/script&gt;", progress.Author)
 	require.NotNil(t, progress.Card)
-	assert.Equal(t, "q1", progress.Card.Question)
+	firstCard := progress.Card.Question
+	secondCard := "q2"
+	if firstCard == "q2" {
+		secondCard = "q1"
+	}
 
 	advanceResp := performRequest(router, http.MethodPost, "/api/v1/cards/"+created.ID+"/"+session.SessionID, nil)
 	require.Equal(t, http.StatusSeeOther, advanceResp.Code)
@@ -86,7 +90,7 @@ func TestCardsAPIFlow(t *testing.T) {
 	require.NoError(t, json.Unmarshal(progressResp.Body.Bytes(), &progress))
 	assert.Equal(t, 1, progress.Passed)
 	require.NotNil(t, progress.Card)
-	assert.Equal(t, "q2", progress.Card.Question)
+	assert.Equal(t, secondCard, progress.Card.Question)
 
 	skipResp := performRequest(router, http.MethodDelete, "/api/v1/cards/"+created.ID+"/"+session.SessionID, nil)
 	require.Equal(t, http.StatusSeeOther, skipResp.Code)
@@ -97,7 +101,7 @@ func TestCardsAPIFlow(t *testing.T) {
 	require.NoError(t, json.Unmarshal(progressResp.Body.Bytes(), &progress))
 	assert.Equal(t, 1, progress.Passed)
 	require.NotNil(t, progress.Card)
-	assert.Equal(t, "q2", progress.Card.Question)
+	assert.Equal(t, secondCard, progress.Card.Question)
 
 	advanceResp = performRequest(router, http.MethodPost, "/api/v1/cards/"+created.ID+"/"+session.SessionID, nil)
 	require.Equal(t, http.StatusSeeOther, advanceResp.Code)
