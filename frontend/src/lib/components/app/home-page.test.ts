@@ -83,6 +83,7 @@ const defaultProps = {
   resolveImageById: () => null,
   isCreating: false,
   createError: '',
+  createStatus: '',
   copyState: 'idle' as const,
   loadLinkError: '',
   onCopyPrompt: () => {},

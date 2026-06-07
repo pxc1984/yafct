@@ -20,6 +20,7 @@
     resolveImageById,
     isCreating,
     createError,
+    createStatus,
     copyState,
     loadLinkError,
     onCopyPrompt,
@@ -36,6 +37,7 @@
     resolveImageById: (imageId: string) => CardImage | null
     isCreating: boolean
     createError: string
+    createStatus: string
     copyState: 'idle' | 'done'
     loadLinkError: string
     onCopyPrompt: () => void | Promise<void>
@@ -435,6 +437,9 @@ REMARK:: `
       {#if createError}
         <p class="text-sm text-destructive">{createError}</p>
       {/if}
+      {#if createStatus}
+        <p class={`text-sm ${createError ? 'text-destructive' : 'text-muted-foreground'}`}>{createStatus}</p>
+      {/if}
       {#if loadLinkError}
         <p class="text-sm text-destructive">{loadLinkError}</p>
       {/if}
@@ -449,7 +454,7 @@ REMARK:: `
       <div class="flex gap-3 max-sm:flex-col">
         <Button variant="outline" size="lg" onclick={onLoadLink}>Открыть по ссылке</Button>
         <Button size="lg" onclick={() => void handleCreateSet()} disabled={isCreating || !sourceText.trim()}>
-          {isCreating ? 'Создание...' : 'Создать набор'}
+          {isCreating ? createStatus || 'Создание...' : 'Создать набор'}
         </Button>
       </div>
     </Card.Footer>

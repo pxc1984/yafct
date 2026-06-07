@@ -40,15 +40,16 @@ func main() {
 
 	router := gin.Default()
 
-	origins := make([]string, 0, 2)
-	origins = append(origins, "https://*.iamamaev.ru")
-	if gin.IsDebugging() {
-		origins = append(origins, "http://localhost:5173", fmt.Sprintf("http://localhost:%d", Settings.Port))
-	}
+	//origins := make([]string, 0, 3)
+	//origins = append(origins, "https://*.iamamaev.ru")
+	//if gin.IsDebugging() {
+	//	origins = append(origins, "http://localhost:5173", fmt.Sprintf("http://localhost:%d", Settings.Port))
+	//}
 
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     origins,
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+		//AllowOrigins:     origins,
+		AllowAllOrigins:  true,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Cookie"},
 		AllowCredentials: true,
 	}))

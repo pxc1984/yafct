@@ -39,6 +39,7 @@
   let setAuthor = $state('')
   let isCreating = $state(false)
   let createError = $state('')
+  let createStatus = $state('')
   let copyState = $state<'idle' | 'done'>('idle')
   let cardsetLinkCopyState = $state<'idle' | 'done'>('idle')
   let sessionLinkCopyState = $state<'idle' | 'done'>('idle')
@@ -293,6 +294,7 @@
 
   async function createSet(nextCards?: CardData[]) {
     createError = ''
+    createStatus = 'Подготавливаю карточки...'
 
     let cards: CardData[]
 
@@ -300,12 +302,15 @@
       cards = nextCards ?? parseCardData(sourceText)
     } catch (error) {
       createError = error instanceof Error ? error.message : 'Не удалось разобрать карточки.'
+      createStatus = ''
       return
     }
 
     isCreating = true
 
     try {
+      createStatus = 'Собираю запрос...'
+
       const payload: CreateCardSetRequest = {
         title: setTitle,
         description: setDescription,
@@ -313,12 +318,19 @@
         cards,
       }
 
+      createStatus = 'Отправляю набор на сервер...'
       const { id } = await createCardSet(payload)
+      createStatus = 'Открываю созданный набор...'
       navigate(`/${id}`)
     } catch (error) {
       createError = error instanceof Error ? error.message : 'Не удалось создать набор.'
+      createStatus = 'Создание остановилось с ошибкой.'
     } finally {
       isCreating = false
+
+      if (!createError) {
+        createStatus = ''
+      }
     }
   }
 
@@ -548,6 +560,7 @@
         resolveImageById={(imageId) => uploadedImages[imageId] ?? null}
         isCreating={isCreating}
         createError={createError}
+        {createStatus}
         copyState={copyState}
         {loadLinkError}
         onCopyPrompt={copyPrompt}
