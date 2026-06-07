@@ -17,6 +17,8 @@
   import HomePage from '$lib/components/app/home-page.svelte'
   import CardsetPage from '$lib/components/app/cardset-page.svelte'
   import SessionPage from '$lib/components/app/session-page.svelte'
+  import * as Sidebar from '$lib/components/ui/sidebar'
+  import AppSidebar from "./lib/components/AppSidebar.svelte";
 
   type SessionRecord = {
     id: string
@@ -509,7 +511,6 @@
     }
 
     event.preventDefault()
-    event.currentTarget instanceof HTMLElement && event.currentTarget.setPointerCapture(event.pointerId)
 
     activePointerId = event.pointerId
     isDragging = true
@@ -677,73 +678,77 @@
   })
 </script>
 
-<main class="min-h-screen bg-background text-foreground">
-  <div class="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-6 sm:px-6 sm:py-8">
-    {#if route.name === 'home'}
-      <HomePage
-        promptText={promptText}
-        bind:sourceText
-        bind:setTitle
-        bind:setDescription
-        bind:setAuthor
-        {parseCardData}
-        resolveImageById={(imageId) => uploadedImages[imageId] ?? null}
-        {recentSessions}
-        isCreating={isCreating}
-        createError={createError}
-        {createStatus}
-        copyState={copyState}
-        {loadLinkError}
-        {formatDate}
-        onCopyPrompt={copyPrompt}
-        onLoadLink={loadLink}
-        onUploadImage={handleUploadImage}
-        onCreateSet={createSet}
-        onNavigate={navigate}
-      />
-    {/if}
+<Sidebar.Provider>
+  <AppSidebar/>
+  <main class="min-h-screen bg-background text-foreground w-full">
+    <Sidebar.Trigger/>
+    <div class="mx-auto flex min-h-screen w-full flex-col px-4 py-6 sm:px-6 sm:py-8">
+      {#if route.name === 'home'}
+        <HomePage
+                promptText={promptText}
+                bind:sourceText
+                bind:setTitle
+                bind:setDescription
+                bind:setAuthor
+                {parseCardData}
+                resolveImageById={(imageId) => uploadedImages[imageId] ?? null}
+                {recentSessions}
+                isCreating={isCreating}
+                createError={createError}
+                {createStatus}
+                copyState={copyState}
+                {loadLinkError}
+                {formatDate}
+                onCopyPrompt={copyPrompt}
+                onLoadLink={loadLink}
+                onUploadImage={handleUploadImage}
+                onCreateSet={createSet}
+                onNavigate={navigate}
+        />
+      {/if}
 
-    {#if route.name === 'cardset'}
-      <CardsetPage
-        cardsetId={route.cardsetId}
-        cardSetDetails={cardSetDetails}
-        cardSetLoading={cardSetLoading}
-        cardSetError={cardSetError}
-        sessions={sessions}
-        sessionListError={sessionListError}
-        sessionsLoading={sessionsLoading}
-        {isMobile}
-        copyLinkState={cardsetLinkCopyState}
-        onCreateSession={() => createSession(activeCardsetId)}
-        onCopyLink={() => void copyLink(`/${activeCardsetId}`, 'cardset')}
-        onNavigate={navigate}
-        onRemoveSession={(sessionId) => removeSession(activeCardsetId, sessionId)}
-        {formatDate}
-      />
-    {/if}
+      {#if route.name === 'cardset'}
+        <CardsetPage
+                cardsetId={route.cardsetId}
+                cardSetDetails={cardSetDetails}
+                cardSetLoading={cardSetLoading}
+                cardSetError={cardSetError}
+                sessions={sessions}
+                sessionListError={sessionListError}
+                sessionsLoading={sessionsLoading}
+                {isMobile}
+                copyLinkState={cardsetLinkCopyState}
+                onCreateSession={() => createSession(activeCardsetId)}
+                onCopyLink={() => void copyLink(`/${activeCardsetId}`, 'cardset')}
+                onNavigate={navigate}
+                onRemoveSession={(sessionId) => removeSession(activeCardsetId, sessionId)}
+                {formatDate}
+        />
+      {/if}
 
-    {#if route.name === 'session'}
-      <SessionPage
-        cardsetId={route.cardsetId}
-        {trainingState}
-        {trainingLoading}
-        {trainingError}
-        {isAnswerVisible}
-        {isDragging}
-        {dragOffset}
-        {progressValue}
-        {isMobile}
-        {showSwipeHint}
-        copyLinkState={sessionLinkCopyState}
-        onNavigate={navigate}
-        onCopyLink={() => void copyLink(`/${activeCardsetId}/${activeSessionId}`, 'session')}
-        onToggleAnswer={toggleAnswer}
-        onMarkKnown={() => void markKnown()}
-        onMarkUnknown={() => void markUnknown()}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={(event) => void handlePointerUp(event)}
-      />
-    {/if}
-  </div>
-</main>
+      {#if route.name === 'session'}
+        <SessionPage
+                cardsetId={route.cardsetId}
+                {trainingState}
+                {trainingLoading}
+                {trainingError}
+                {isAnswerVisible}
+                {isDragging}
+                {dragOffset}
+                {progressValue}
+                {isMobile}
+                {showSwipeHint}
+                copyLinkState={sessionLinkCopyState}
+                onNavigate={navigate}
+                onCopyLink={() => void copyLink(`/${activeCardsetId}/${activeSessionId}`, 'session')}
+                onToggleAnswer={toggleAnswer}
+                onMarkKnown={() => void markKnown()}
+                onMarkUnknown={() => void markUnknown()}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={(event) => void handlePointerUp(event)}
+        />
+      {/if}
+    </div>
+  </main>
+</Sidebar.Provider>

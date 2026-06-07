@@ -68,24 +68,6 @@ QUESTION:: Что возвращает выражение $2^3$?
 ANSWER:: $8$
 REMARK:: `
 
-  const starterExamples = [
-    {
-      title: 'Английские слова',
-      description: 'Слова, перевод и ремарка по контексту.',
-      content: `QUESTION:: resilient\nANSWER:: устойчивый\nREMARK:: Часто встречается в business English.\n\nQUESTION:: outcome\nANSWER:: результат\nREMARK:: Полезно для митингов и отчетов.`,
-    },
-    {
-      title: 'Формулы по матану',
-      description: 'Короткий набор с LaTeX-формулами.',
-      content: `QUESTION:: Производная $\\sin x$\nANSWER:: $\\cos x$\nREMARK:: Базовая таблица производных.\n\nQUESTION:: Интеграл $\\int x^2 dx$\nANSWER:: $\\frac{x^3}{3} + C$\nREMARK:: Степень увеличивается на 1.`,
-    },
-    {
-      title: 'Собес по JS',
-      description: 'Базовые вопросы для быстрого прогона.',
-      content: `QUESTION:: Что такое closure?\nANSWER:: Функция вместе с лексическим окружением.\nREMARK:: Важно для инкапсуляции состояния.\n\nQUESTION:: Разница между == и ===?\nANSWER:: === не приводит типы, == приводит.\nREMARK:: Для предсказуемости чаще используют ===.`,
-    },
-  ] as const
-
   let previewMode = $state<'text' | 'list'>('text')
   let previewCards = $state<CardData[]>([])
   let previewError = $state('')
@@ -286,29 +268,6 @@ REMARK:: `
     const cards = previewMode === 'list' ? previewCards : ensureCardImages(parseCardData(sourceText))
     await onCreateSet(cards)
   }
-
-  function scrollToSection(section: 'prompt' | 'composer' | 'history') {
-    const target =
-      section === 'prompt' ? promptSection : section === 'composer' ? composerSection : historySection
-
-    target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-
-  function applyStarterExample(example: (typeof starterExamples)[number]) {
-    sourceText = example.content
-    setTitle = example.title
-    setDescription = example.description
-    previewMode = 'text'
-    previewError = ''
-    syncedPreviewSourceText = example.content
-    scrollToSection('composer')
-  }
-
-  $effect(() => {
-    if (previewMode === 'list' && syncedPreviewSourceText !== sourceText) {
-      syncPreviewFromSource()
-    }
-  })
 </script>
 
 <section class="mx-auto flex w-full flex-1 items-start">
@@ -327,29 +286,9 @@ REMARK:: `
         </div>
       </div>
 
-      {#if !sourceText.trim() && recentSessions.length === 0}
-        <div class="mb-5 rounded-[1.75rem] border border-dashed border-border bg-muted/25 p-4 sm:p-5">
-          <div class="mb-4 space-y-1">
-            <p class="text-sm font-medium">Быстрый старт</p>
-            <p class="text-sm text-muted-foreground">Выбери готовый шаблон, чтобы сразу получить хороший пример набора без пустого экрана.</p>
-          </div>
-          <div class="grid gap-3 lg:grid-cols-3">
-            {#each starterExamples as example}
-              <button class="rounded-[1.5rem] border border-border/70 bg-background px-4 py-4 text-left transition hover:bg-muted/50" onclick={() => applyStarterExample(example)}>
-                <div class="mb-2 flex items-center justify-between gap-3">
-                  <p class="font-medium">{example.title}</p>
-                  <Sparkles class="size-4 text-muted-foreground" />
-                </div>
-                <p class="text-sm text-muted-foreground">{example.description}</p>
-              </button>
-            {/each}
-          </div>
-        </div>
-      {/if}
-
       <input bind:this={fileInput} type="file" accept="image/*" class="hidden" onchange={handleFileInputChange} />
 
-      <div bind:this={composerSection} class="grid min-h-0 flex-1 gap-5 xl:grid-cols-[22rem_minmax(0,1fr)] xl:overflow-hidden">
+      <div bind:this={composerSection} class="grid min-h-0 flex-1 gap-5 xl:grid-cols-[22rem_minmax(0,1fr)] xl:overflow-hidden xl:max-h-96">
         <div class="grid gap-4 xl:min-h-0 xl:auto-rows-max">
           <label class="space-y-2">
             <span class="text-sm font-medium">Название набора</span>
@@ -380,7 +319,7 @@ REMARK:: `
           </label>
         </div>
 
-        <div class="flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-muted/10 p-4">
+        <div class="flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-muted/10 p-4 h-96">
           <div class="mb-3 flex items-center justify-between gap-3">
             <span class="text-sm font-medium">Текст с карточками</span>
             <div class="flex items-center gap-2">
@@ -408,13 +347,13 @@ REMARK:: `
           {#if previewMode === 'text'}
             <textarea
               bind:value={sourceText}
-              class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-[24rem] flex-1 resize-none overflow-auto rounded-[1.5rem] border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3 xl:min-h-0"
+              class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 max-h-96 flex-1 resize-none overflow-auto rounded-[1.5rem] border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3 xl:min-h-0"
               placeholder={sourcePlaceholder}
             ></textarea>
           {:else}
             <div
               data-testid="cards-list-container"
-              class="dark:bg-input/30 border-input min-h-[24rem] flex-1 overflow-hidden rounded-[1.5rem] border bg-transparent text-sm xl:min-h-0"
+              class="dark:bg-input/30 border-input max-h-96 flex-1 overflow-hidden rounded-[1.5rem] border bg-transparent text-sm xl:min-h-0"
             >
               {#if previewError}
                 <div class="h-full overflow-auto px-4 py-3">
