@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { App as CapacitorApp } from '@capacitor/app'
   import promptTemplate from '../prompt.txt?raw'
   import {
     createCardSet,
@@ -121,9 +122,18 @@
     return { name: 'home' }
   }
 
+  function readPathFromUrl(url: string) {
+    const { pathname } = new URL(url, window.location.origin)
+    return pathname || '/'
+  }
+
   function navigate(path: string) {
     window.history.pushState({}, '', path)
     route = parseRoute(path)
+  }
+
+  function openLink(url: string) {
+    navigate(readPathFromUrl(url))
   }
 
   function buildAbsoluteUrl(path: string) {
@@ -166,8 +176,7 @@
     }
 
     try {
-      const pathname = new URL(nextLink, window.location.origin).pathname
-      navigate(pathname)
+      openLink(nextLink)
       loadLinkError = ''
     } catch {
       loadLinkError = 'Не удалось распознать ссылку.'
@@ -609,9 +618,22 @@
     window.addEventListener('popstate', onPopState)
     media.addEventListener('change', syncMobile)
 
+    void CapacitorApp.getLaunchUrl().then((result) => {
+      if (result?.url) {
+        openLink(result.url)
+      }
+    })
+
+    const appUrlOpenListener = CapacitorApp.addListener('appUrlOpen', ({ url }) => {
+      if (url) {
+        openLink(url)
+      }
+    })
+
     return () => {
       window.removeEventListener('popstate', onPopState)
       media.removeEventListener('change', syncMobile)
+      void appUrlOpenListener.then((listener) => listener.remove())
     }
   })
 

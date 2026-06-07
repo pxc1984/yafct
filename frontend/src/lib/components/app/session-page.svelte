@@ -126,7 +126,7 @@
               >
                 {#if !isAnswerVisible}
                   <div class="pointer-events-none absolute inset-0 z-10 rounded-lg bg-gradient-to-br from-muted/20 via-background/10 to-muted/20 opacity-80 transition-opacity duration-500">
-                    <div class="shimmer size-full" />
+                    <div class="shimmer size-full"></div>
                   </div>
                 {/if}
                 <div class="fog-text" class:revealed={isAnswerVisible}>
