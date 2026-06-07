@@ -38,7 +38,16 @@ func main() {
 
 	slog.Debug("loaded settings from .env")
 
-	router := gin.Default()
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(func(c *gin.Context) {
+		if c.Request.URL.Path == "/api/health" {
+			slog.Debug("request", "method", c.Request.Method, "path", c.Request.URL.Path, "status", c.Writer.Status())
+		} else {
+			slog.Info("request", "method", c.Request.Method, "path", c.Request.URL.Path, "status", c.Writer.Status())
+		}
+		c.Next()
+	})
 
 	//origins := make([]string, 0, 3)
 	//origins = append(origins, "https://*.iamamaev.ru")
