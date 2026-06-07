@@ -22,7 +22,10 @@
     sessions,
     sessionListError,
     sessionsLoading,
+    isMobile,
+    copyLinkState,
     onCreateSession,
+    onCopyLink,
     onNavigate,
     onRemoveSession,
     formatDate,
@@ -34,7 +37,10 @@
     sessions: SessionRecord[]
     sessionListError: string
     sessionsLoading: boolean
+    isMobile: boolean
+    copyLinkState: 'idle' | 'done'
     onCreateSession: () => void | Promise<void>
+    onCopyLink: () => void | Promise<void>
     onNavigate: (path: string) => void
     onRemoveSession: (sessionId: string) => void
     formatDate: (value: string) => string
@@ -66,6 +72,11 @@
           <Play class="size-4" />
           {sessionsLoading ? 'Создание...' : 'Начать новую сессию'}
         </Button>
+        {#if isMobile}
+          <Button variant="outline" class="w-full" onclick={onCopyLink}>
+            {copyLinkState === 'done' ? 'Ссылка скопирована' : 'Копировать ссылку на набор'}
+          </Button>
+        {/if}
         {#if sessionListError}
           <p class="mt-3 text-sm text-destructive">{sessionListError}</p>
         {/if}

@@ -20,7 +20,9 @@
     progressValue,
     isMobile,
     showSwipeHint,
+    copyLinkState,
     onNavigate,
+    onCopyLink,
     onToggleAnswer,
     onMarkKnown,
     onMarkUnknown,
@@ -38,7 +40,9 @@
     progressValue: number
     isMobile: boolean
     showSwipeHint: boolean
+    copyLinkState: 'idle' | 'done'
     onNavigate: (path: string) => void
+    onCopyLink: () => void | Promise<void>
     onToggleAnswer: () => void
     onMarkKnown: () => void | Promise<void>
     onMarkUnknown: () => void | Promise<void>
@@ -54,7 +58,14 @@
       <p class="text-sm text-muted-foreground">{trainingState?.author ? `Автор: ${trainingState.author}` : `Набор ${cardsetId}`}</p>
       <h1 class="text-2xl font-semibold">{trainingState?.title || 'Тренировка'}</h1>
     </div>
-    <Button variant="outline" onclick={() => onNavigate(`/${cardsetId}`)}>К сессиям</Button>
+    <div class="flex items-center gap-2">
+      {#if isMobile}
+        <Button variant="outline" onclick={onCopyLink}>
+          {copyLinkState === 'done' ? 'Ссылка скопирована' : 'Копировать ссылку'}
+        </Button>
+      {/if}
+      <Button variant="outline" onclick={() => onNavigate(`/${cardsetId}`)}>К сессиям</Button>
+    </div>
   </div>
 
   <Card.Root>

@@ -40,6 +40,9 @@
   let isCreating = $state(false)
   let createError = $state('')
   let copyState = $state<'idle' | 'done'>('idle')
+  let cardsetLinkCopyState = $state<'idle' | 'done'>('idle')
+  let sessionLinkCopyState = $state<'idle' | 'done'>('idle')
+  let loadLinkError = $state('')
 
   let sessions = $state<SessionRecord[]>([])
   let sessionsLoading = $state(false)
@@ -69,6 +72,7 @@
 
   const hasActiveCard = $derived(Boolean(trainingState?.card))
   const activeCardsetId = $derived(route.name === 'home' ? '' : route.cardsetId)
+  const activeSessionId = $derived(route.name === 'session' ? route.sessionId : '')
 
   function parseRoute(pathname: string): Route {
     const parts = pathname.split('/').filter(Boolean)
@@ -87,6 +91,45 @@
   function navigate(path: string) {
     window.history.pushState({}, '', path)
     route = parseRoute(path)
+  }
+
+  function buildAbsoluteUrl(path: string) {
+    return new URL(path, window.location.origin).toString()
+  }
+
+  async function copyLink(path: string, target: 'cardset' | 'session') {
+    await navigator.clipboard.writeText(buildAbsoluteUrl(path))
+
+    if (target === 'cardset') {
+      cardsetLinkCopyState = 'done'
+    } else {
+      sessionLinkCopyState = 'done'
+    }
+
+    window.setTimeout(() => {
+      if (target === 'cardset') {
+        cardsetLinkCopyState = 'idle'
+        return
+      }
+
+      sessionLinkCopyState = 'idle'
+    }, 1500)
+  }
+
+  function loadLink() {
+    const nextLink = window.prompt('Вставь ссылку на набор или сессию.', buildAbsoluteUrl('/'))?.trim()
+
+    if (!nextLink) {
+      return
+    }
+
+    try {
+      const pathname = new URL(nextLink, window.location.origin).pathname
+      navigate(pathname)
+      loadLinkError = ''
+    } catch {
+      loadLinkError = 'Не удалось распознать ссылку.'
+    }
   }
 
   function readStoredSessions(cardsetId: string) {
@@ -506,7 +549,9 @@
         isCreating={isCreating}
         createError={createError}
         copyState={copyState}
+        {loadLinkError}
         onCopyPrompt={copyPrompt}
+        onLoadLink={loadLink}
         onUploadImage={handleUploadImage}
         onCreateSet={createSet}
       />
@@ -521,7 +566,10 @@
         sessions={sessions}
         sessionListError={sessionListError}
         sessionsLoading={sessionsLoading}
+        {isMobile}
+        copyLinkState={cardsetLinkCopyState}
         onCreateSession={() => createSession(activeCardsetId)}
+        onCopyLink={() => void copyLink(`/${activeCardsetId}`, 'cardset')}
         onNavigate={navigate}
         onRemoveSession={(sessionId) => removeSession(activeCardsetId, sessionId)}
         {formatDate}
@@ -540,7 +588,9 @@
         {progressValue}
         {isMobile}
         {showSwipeHint}
+        copyLinkState={sessionLinkCopyState}
         onNavigate={navigate}
+        onCopyLink={() => void copyLink(`/${activeCardsetId}/${activeSessionId}`, 'session')}
         onToggleAnswer={toggleAnswer}
         onMarkKnown={() => void markKnown()}
         onMarkUnknown={() => void markUnknown()}

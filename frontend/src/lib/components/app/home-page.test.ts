@@ -84,7 +84,9 @@ const defaultProps = {
   isCreating: false,
   createError: '',
   copyState: 'idle' as const,
+  loadLinkError: '',
   onCopyPrompt: () => {},
+  onLoadLink: () => {},
   onUploadImage: async () => ({ id: 'img-1', mimeType: 'image/png', dataBase64: 'aGVsbG8=' }),
   onCreateSet: () => {},
 }

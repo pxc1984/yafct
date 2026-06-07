@@ -21,7 +21,9 @@
     isCreating,
     createError,
     copyState,
+    loadLinkError,
     onCopyPrompt,
+    onLoadLink,
     onUploadImage,
     onCreateSet,
   }: {
@@ -35,7 +37,9 @@
     isCreating: boolean
     createError: string
     copyState: 'idle' | 'done'
+    loadLinkError: string
     onCopyPrompt: () => void | Promise<void>
+    onLoadLink: () => void
     onUploadImage: (file: File) => Promise<CardImage>
     onCreateSet: (cards?: CardData[]) => void | Promise<void>
   } = $props()
@@ -431,6 +435,9 @@ REMARK:: `
       {#if createError}
         <p class="text-sm text-destructive">{createError}</p>
       {/if}
+      {#if loadLinkError}
+        <p class="text-sm text-destructive">{loadLinkError}</p>
+      {/if}
       {#if uploadError}
         <p class="text-sm text-destructive">{uploadError}</p>
       {/if}
@@ -439,9 +446,12 @@ REMARK:: `
       <p class="text-sm text-muted-foreground">
         {copyState === 'done' ? 'Промпт скопирован.' : ''}
       </p>
-      <Button size="lg" onclick={() => void handleCreateSet()} disabled={isCreating || !sourceText.trim()}>
-        {isCreating ? 'Создание...' : 'Создать набор'}
-      </Button>
+      <div class="flex gap-3 max-sm:flex-col">
+        <Button variant="outline" size="lg" onclick={onLoadLink}>Открыть по ссылке</Button>
+        <Button size="lg" onclick={() => void handleCreateSet()} disabled={isCreating || !sourceText.trim()}>
+          {isCreating ? 'Создание...' : 'Создать набор'}
+        </Button>
+      </div>
     </Card.Footer>
   </Card.Root>
 </section>
