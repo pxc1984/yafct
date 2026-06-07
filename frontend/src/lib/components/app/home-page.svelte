@@ -1,16 +1,30 @@
 <script lang="ts">
+  import ArrowRight from '@lucide/svelte/icons/arrow-right'
+  import ChevronDown from '@lucide/svelte/icons/chevron-down'
+  import Clock3 from '@lucide/svelte/icons/clock-3'
   import Copy from '@lucide/svelte/icons/copy'
   import FileText from '@lucide/svelte/icons/file-text'
   import ImagePlus from '@lucide/svelte/icons/image-plus'
+  import Layers3 from '@lucide/svelte/icons/layers-3'
+  import Link2 from '@lucide/svelte/icons/link-2'
   import List from '@lucide/svelte/icons/list'
   import Plus from '@lucide/svelte/icons/plus'
+  import Sparkles from '@lucide/svelte/icons/sparkles'
   import Trash2 from '@lucide/svelte/icons/trash-2'
   import X from '@lucide/svelte/icons/x'
 
   import type { CardData, CardImage } from '$lib/api/flashcards'
 
+  import { Badge } from '$lib/components/ui/badge'
   import { Button } from '$lib/components/ui/button'
-  import * as Card from '$lib/components/ui/card'
+
+  type RecentSession = {
+    cardsetId: string
+    cardsetTitle: string
+    cardsetAuthor: string
+    id: string
+    updatedAt: string
+  }
 
   let {
     promptText,
@@ -20,15 +34,18 @@
     setAuthor = $bindable(''),
     parseCardData,
     resolveImageById,
+    recentSessions,
     isCreating,
     createError,
     createStatus,
     copyState,
     loadLinkError,
+    formatDate,
     onCopyPrompt,
     onLoadLink,
     onUploadImage,
     onCreateSet,
+    onNavigate,
   }: {
     promptText: string
     sourceText: string
@@ -37,15 +54,18 @@
     setAuthor: string
     parseCardData: (input: string) => CardData[]
     resolveImageById: (imageId: string) => CardImage | null
+    recentSessions: RecentSession[]
     isCreating: boolean
     createError: string
     createStatus: string
     copyState: 'idle' | 'done'
     loadLinkError: string
+    formatDate: (value: string) => string
     onCopyPrompt: () => void | Promise<void>
     onLoadLink: () => void
     onUploadImage: (file: File) => Promise<CardImage>
     onCreateSet: (cards?: CardData[]) => void | Promise<void>
+    onNavigate: (path: string) => void
   } = $props()
 
   const sourcePlaceholder = `QUESTION:: Что такое closure?
@@ -56,6 +76,30 @@ QUESTION:: Что возвращает выражение $2^3$?
 ANSWER:: $8$
 REMARK:: `
 
+  const quickActions = [
+    { label: 'Новый набор', section: 'composer' },
+    { label: 'Шаблон', section: 'prompt' },
+    { label: 'История', section: 'history' },
+  ] as const
+
+  const starterExamples = [
+    {
+      title: 'Английские слова',
+      description: 'Слова, перевод и ремарка по контексту.',
+      content: `QUESTION:: resilient\nANSWER:: устойчивый\nREMARK:: Часто встречается в business English.\n\nQUESTION:: outcome\nANSWER:: результат\nREMARK:: Полезно для митингов и отчетов.`,
+    },
+    {
+      title: 'Формулы по матану',
+      description: 'Короткий набор с LaTeX-формулами.',
+      content: `QUESTION:: Производная $\\sin x$\nANSWER:: $\\cos x$\nREMARK:: Базовая таблица производных.\n\nQUESTION:: Интеграл $\\int x^2 dx$\nANSWER:: $\\frac{x^3}{3} + C$\nREMARK:: Степень увеличивается на 1.`,
+    },
+    {
+      title: 'Собес по JS',
+      description: 'Базовые вопросы для быстрого прогона.',
+      content: `QUESTION:: Что такое closure?\nANSWER:: Функция вместе с лексическим окружением.\nREMARK:: Важно для инкапсуляции состояния.\n\nQUESTION:: Разница между == и ===?\nANSWER:: === не приводит типы, == приводит.\nREMARK:: Для предсказуемости чаще используют ===.`,
+    },
+  ] as const
+
   let previewMode = $state<'text' | 'list'>('text')
   let previewCards = $state<CardData[]>([])
   let previewError = $state('')
@@ -65,6 +109,10 @@ REMARK:: `
   let uploadError = $state('')
   let uploadTarget = $state<{ index: number; field: 'questionImages' | 'answerImages' } | null>(null)
   let fileInput: HTMLInputElement | null = null
+  let promptSection: HTMLElement | null = null
+  let composerSection: HTMLElement | null = null
+  let historySection: HTMLElement | null = null
+  let isSidebarOpen = $state(false)
 
   function formatCardData(cards: CardData[]) {
     return cards
@@ -254,6 +302,24 @@ REMARK:: `
     await onCreateSet(cards)
   }
 
+  function scrollToSection(section: 'prompt' | 'composer' | 'history') {
+    const target =
+      section === 'prompt' ? promptSection : section === 'composer' ? composerSection : historySection
+
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    isSidebarOpen = false
+  }
+
+  function applyStarterExample(example: (typeof starterExamples)[number]) {
+    sourceText = example.content
+    setTitle = example.title
+    setDescription = example.description
+    previewMode = 'text'
+    previewError = ''
+    syncedPreviewSourceText = example.content
+    scrollToSection('composer')
+  }
+
   $effect(() => {
     if (previewMode === 'list' && syncedPreviewSourceText !== sourceText) {
       syncPreviewFromSource()
@@ -261,33 +327,121 @@ REMARK:: `
   })
 </script>
 
-<section class="mx-auto flex w-full flex-1 items-center">
-  <Card.Root class="border-border/70 bg-card/85 shadow-sm backdrop-blur">
-    <Card.Header class="gap-4">
-      <div class="space-y-2">
-        <Card.Title class="text-3xl sm:text-4xl">Тренировка по карточкам</Card.Title>
-        <Card.Description>
-          Если лень писать самостоятельно карточки можешь воспользоваться вот этим системным промптом.
-        </Card.Description>
+<section class="mx-auto flex w-full flex-1 items-start">
+  <div class="grid w-full gap-5 xl:min-h-[calc(100vh-5rem)] xl:grid-cols-[18rem_minmax(0,1fr)] xl:overflow-hidden">
+    <div class="xl:hidden">
+      <Button
+        variant="outline"
+        class="w-full justify-between"
+        onclick={() => {
+          isSidebarOpen = !isSidebarOpen
+        }}
+        aria-expanded={isSidebarOpen}
+        aria-controls="home-sidebar"
+      >
+        <span class="flex items-center gap-2">
+          <Layers3 class="size-4" />
+          Панель навигации
+        </span>
+        <ChevronDown class={`size-4 transition-transform ${isSidebarOpen ? 'rotate-180' : ''}`} />
+      </Button>
+    </div>
+
+    <aside id="home-sidebar" class={`${isSidebarOpen ? 'block' : 'hidden'} xl:flex xl:h-full xl:flex-col xl:overflow-hidden`}>
+      <div class="flex h-full flex-col gap-5 rounded-[2rem] border border-border/70 bg-gradient-to-b from-background to-muted/30 p-5 xl:min-h-0">
+        <div class="space-y-3">
+          <Badge variant="outline" class="w-fit">Workspace</Badge>
+          <div>
+            <h1 class="text-2xl font-semibold tracking-tight">Flashcards Trainer</h1>
+            <p class="mt-1 text-sm text-muted-foreground">Один экран для создания, истории и быстрого старта.</p>
+          </div>
+        </div>
+
+        <nav class="space-y-2">
+          {#each quickActions as action}
+            <Button variant="ghost" class="w-full justify-start rounded-2xl px-3" onclick={() => scrollToSection(action.section)}>
+              {action.label}
+            </Button>
+          {/each}
+          <Button class="w-full justify-start gap-2 rounded-2xl" onclick={onLoadLink}>
+            <Link2 class="size-4" />
+            Открыть по ссылке
+          </Button>
+        </nav>
+
+        <div bind:this={historySection} class="min-h-0 flex-1 overflow-hidden rounded-[1.75rem] border border-border/70 bg-background/70 p-4">
+          <div class="mb-3 flex items-center gap-2">
+            <Clock3 class="size-4 text-muted-foreground" />
+            <p class="text-sm font-medium">Недавние сессии</p>
+          </div>
+
+          <div class="flex max-h-full flex-col gap-2 overflow-auto pr-1">
+            {#if recentSessions.length === 0}
+              <p class="text-sm text-muted-foreground">История появится после первой начатой сессии.</p>
+            {:else}
+              {#each recentSessions as session (session.cardsetId + session.id)}
+                <button
+                  class="flex w-full items-center justify-between rounded-2xl border border-border/70 px-3 py-3 text-left transition hover:bg-muted/50"
+                  onclick={() => onNavigate(`/${session.cardsetId}/${session.id}`)}
+                >
+                  <span class="min-w-0">
+                    <span class="block truncate text-sm font-medium">{session.cardsetTitle}</span>
+                    {#if session.cardsetAuthor}
+                      <span class="block truncate text-xs text-muted-foreground">Автор: {session.cardsetAuthor}</span>
+                    {/if}
+                    <span class="block truncate text-xs text-muted-foreground">Сессия {session.id} · {formatDate(session.updatedAt)}</span>
+                  </span>
+                  <ArrowRight class="size-4 shrink-0 text-muted-foreground" />
+                </button>
+              {/each}
+            {/if}
+          </div>
+        </div>
       </div>
-    </Card.Header>
-    <Card.Content class="space-y-4">
-      <div class="relative rounded-2xl border bg-background/70 p-4 pr-16">
-        <Button
-          variant="outline"
-          size="icon-sm"
-          class="absolute top-3 right-3"
-          onclick={onCopyPrompt}
-          aria-label="Скопировать промпт"
-        >
-          <Copy class="size-4" />
-        </Button>
-        <pre class="max-h-5 overflow-auto whitespace-pre-wrap text-sm text-muted-foreground">{promptText}</pre>
+    </aside>
+
+    <div class="flex min-h-0 flex-col rounded-[2rem] border border-border/70 bg-background/60 p-5 sm:p-6 xl:overflow-hidden">
+      <div class="mb-5 flex flex-wrap items-start justify-between gap-4">
+        <div class="space-y-2">
+          <Badge variant="secondary" class="w-fit rounded-full px-3 py-1 text-xs">Создание набора</Badge>
+          <div>
+            <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">Собери новый набор карточек</h2>
+            <p class="mt-1 max-w-2xl text-sm text-muted-foreground">Большая рабочая зона без лишних технических карточек: слева метаданные, справа контент и визуальный список.</p>
+          </div>
+        </div>
+        <div bind:this={promptSection} class="flex items-center gap-2 rounded-full border border-border/70 px-3 py-2 text-sm text-muted-foreground">
+          <Sparkles class="size-4" />
+          <span class="max-w-52 truncate">Шаблон для генерации карточек</span>
+          <Button variant="ghost" size="icon-sm" onclick={onCopyPrompt} aria-label="Скопировать промпт">
+            <Copy class="size-4" />
+          </Button>
+        </div>
       </div>
 
-      <div class="grid gap-4 lg:grid-cols-2 lg:items-stretch">
-        <input bind:this={fileInput} type="file" accept="image/*" class="hidden" onchange={handleFileInputChange} />
-        <div class="flex min-h-[18rem] flex-col gap-4">
+      {#if !sourceText.trim() && recentSessions.length === 0}
+        <div class="mb-5 rounded-[1.75rem] border border-dashed border-border bg-muted/25 p-4 sm:p-5">
+          <div class="mb-4 space-y-1">
+            <p class="text-sm font-medium">Быстрый старт</p>
+            <p class="text-sm text-muted-foreground">Выбери готовый шаблон, чтобы сразу получить хороший пример набора без пустого экрана.</p>
+          </div>
+          <div class="grid gap-3 lg:grid-cols-3">
+            {#each starterExamples as example}
+              <button class="rounded-[1.5rem] border border-border/70 bg-background px-4 py-4 text-left transition hover:bg-muted/50" onclick={() => applyStarterExample(example)}>
+                <div class="mb-2 flex items-center justify-between gap-3">
+                  <p class="font-medium">{example.title}</p>
+                  <Sparkles class="size-4 text-muted-foreground" />
+                </div>
+                <p class="text-sm text-muted-foreground">{example.description}</p>
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
+      <input bind:this={fileInput} type="file" accept="image/*" class="hidden" onchange={handleFileInputChange} />
+
+      <div bind:this={composerSection} class="grid min-h-0 flex-1 gap-5 xl:grid-cols-[22rem_minmax(0,1fr)] xl:overflow-hidden">
+        <div class="grid gap-4 xl:min-h-0 xl:auto-rows-max">
           <label class="space-y-2">
             <span class="text-sm font-medium">Название набора</span>
             <input
@@ -302,7 +456,7 @@ REMARK:: `
             <span class="text-sm font-medium">Описание</span>
             <textarea
               bind:value={setDescription}
-              class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-0 flex-1 resize-none overflow-auto rounded-2xl border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3"
+              class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-[7rem] xl:min-h-0 xl:flex-1 resize-none overflow-auto rounded-2xl border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3"
               placeholder="Сделано без любви и с помощью ллм, зато работает."
             ></textarea>
           </label>
@@ -315,10 +469,15 @@ REMARK:: `
               placeholder="Игорь <@igamamaev>"
             />
           </label>
+
+          <div class="rounded-[1.5rem] border border-border/70 p-4 text-sm text-muted-foreground">
+            <p class="mb-2 font-medium text-foreground">Промпт</p>
+            <pre class="max-h-28 overflow-auto whitespace-pre-wrap">{promptText}</pre>
+          </div>
         </div>
 
-        <div class="flex h-[18rem] flex-col gap-2">
-          <div class="flex items-center justify-between gap-3">
+        <div class="flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-muted/10 p-4">
+          <div class="mb-3 flex items-center justify-between gap-3">
             <span class="text-sm font-medium">Текст с карточками</span>
             <div class="flex items-center gap-2">
               {#if previewMode === 'list'}
@@ -345,13 +504,13 @@ REMARK:: `
           {#if previewMode === 'text'}
             <textarea
               bind:value={sourceText}
-              class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-0 h-[28rem] flex-1 resize-none overflow-auto rounded-2xl border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3"
+              class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-[24rem] flex-1 resize-none overflow-auto rounded-[1.5rem] border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-3 xl:min-h-0"
               placeholder={sourcePlaceholder}
             ></textarea>
           {:else}
             <div
               data-testid="cards-list-container"
-              class="dark:bg-input/30 border-input min-h-0 h-[18rem] flex-1 overflow-hidden rounded-2xl border bg-transparent text-sm"
+              class="dark:bg-input/30 border-input min-h-[24rem] flex-1 overflow-hidden rounded-[1.5rem] border bg-transparent text-sm xl:min-h-0"
             >
               {#if previewError}
                 <div class="h-full overflow-auto px-4 py-3">
@@ -360,80 +519,80 @@ REMARK:: `
               {:else}
                 <div class="h-full overflow-auto px-4 py-3">
                   <div class="space-y-4">
-                  {#each previewCards as card, index (index)}
-                    <section data-testid={`preview-card-${index}`} class="relative space-y-2 rounded-xl border border-border/70 bg-background/70 p-3">
-                      <Button
-                        variant={pendingDeleteIndex === index ? 'destructive' : 'outline'}
-                        size="icon-sm"
-                        class="absolute top-2 right-3"
-                        onclick={() => requestDeleteCard(index)}
-                        aria-label={pendingDeleteIndex === index ? 'Подтвердить удаление карточки' : 'Удалить карточку'}
-                      >
-                        <Trash2 class="size-4" />
-                      </Button>
-                      <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Карточка {index + 1}</p>
-                      <label class="flex flex-col gap-1">
-                        <span class="flex items-center justify-between gap-3 font-medium">
-                          <span>Вопрос</span>
-                          <Button variant="outline" size="sm" onclick={() => openImagePicker(index, 'questionImages')} disabled={card.questionImages.length >= 5} aria-label="Добавить изображение">
-                            <ImagePlus class="size-4" />
-                          </Button>
-                        </span>
-                        <textarea
-                          value={card.question}
-                          class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 h-15 overflow-auto resize-y rounded-xl border bg-transparent px-3 py-2 outline-none focus-visible:ring-3"
-                          oninput={(event) => updateCardField(index, 'question', event.currentTarget.value)}
-                          onpaste={(event) => void handlePasteImage(event, index, 'questionImages')}
-                        ></textarea>
-                        {#if card.questionImages.length > 0}
-                          <div class="grid gap-2 sm:grid-cols-2">
-                            {#each card.questionImages as image (image.id)}
-                              <div class="relative overflow-hidden rounded-xl border bg-background/80 p-2">
-                                <img src={`data:${image.mimeType};base64,${image.dataBase64}`} alt="Изображение вопроса" class="h-28 w-full rounded-lg object-cover" />
-                                <Button variant="outline" size="icon-xs" class="absolute top-3 right-3" onclick={() => removeCardImage(index, 'questionImages', image.id)} aria-label="Удалить изображение вопроса">
-                                  <X class="size-3" />
-                                </Button>
-                              </div>
-                            {/each}
-                          </div>
-                        {/if}
-                      </label>
-                      <label class="flex flex-col gap-1">
-                        <span class="flex items-center justify-between gap-3 font-medium">
-                          <span>Ответ</span>
-                          <Button variant="outline" size="sm" onclick={() => openImagePicker(index, 'answerImages')} disabled={card.answerImages.length >= 5} aria-label="Добавить изображение">
-                            <ImagePlus class="size-4" />
-                          </Button>
-                        </span>
-                        <textarea
-                          value={card.answer}
-                          class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 h-15 overflow-auto resize-y rounded-xl border bg-transparent px-3 py-2 outline-none focus-visible:ring-3"
-                          oninput={(event) => updateCardField(index, 'answer', event.currentTarget.value)}
-                          onpaste={(event) => void handlePasteImage(event, index, 'answerImages')}
-                        ></textarea>
-                        {#if card.answerImages.length > 0}
-                          <div class="grid gap-2 sm:grid-cols-2">
-                            {#each card.answerImages as image (image.id)}
-                              <div class="relative overflow-hidden rounded-xl border bg-background/80 p-2">
-                                <img src={`data:${image.mimeType};base64,${image.dataBase64}`} alt="Изображение ответа" class="h-28 w-full rounded-lg object-cover" />
-                                <Button variant="outline" size="icon-xs" class="absolute top-3 right-3" onclick={() => removeCardImage(index, 'answerImages', image.id)} aria-label="Удалить изображение ответа">
-                                  <X class="size-3" />
-                                </Button>
-                              </div>
-                            {/each}
-                          </div>
-                        {/if}
-                      </label>
-                      <label class="flex flex-col gap-1">
-                        <span class="font-medium">Ремарка</span>
-                        <textarea
-                          value={card.remarks}
-                          class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 h-10 overflow-auto resize-y rounded-xl border bg-transparent px-3 py-2 outline-none focus-visible:ring-3"
-                          oninput={(event) => updateCardField(index, 'remarks', event.currentTarget.value)}
-                        ></textarea>
-                      </label>
-                    </section>
-                  {/each}
+                    {#each previewCards as card, index (index)}
+                      <section data-testid={`preview-card-${index}`} class="relative space-y-2 rounded-[1.25rem] border border-border/70 bg-background/70 p-3">
+                        <Button
+                          variant={pendingDeleteIndex === index ? 'destructive' : 'outline'}
+                          size="icon-sm"
+                          class="absolute top-2 right-3"
+                          onclick={() => requestDeleteCard(index)}
+                          aria-label={pendingDeleteIndex === index ? 'Подтвердить удаление карточки' : 'Удалить карточку'}
+                        >
+                          <Trash2 class="size-4" />
+                        </Button>
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Карточка {index + 1}</p>
+                        <label class="flex flex-col gap-1">
+                          <span class="flex items-center justify-between gap-3 font-medium">
+                            <span>Вопрос</span>
+                            <Button variant="outline" size="sm" onclick={() => openImagePicker(index, 'questionImages')} disabled={card.questionImages.length >= 5} aria-label="Добавить изображение">
+                              <ImagePlus class="size-4" />
+                            </Button>
+                          </span>
+                          <textarea
+                            value={card.question}
+                            class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 h-15 overflow-auto resize-y rounded-xl border bg-transparent px-3 py-2 outline-none focus-visible:ring-3"
+                            oninput={(event) => updateCardField(index, 'question', event.currentTarget.value)}
+                            onpaste={(event) => void handlePasteImage(event, index, 'questionImages')}
+                          ></textarea>
+                          {#if card.questionImages.length > 0}
+                            <div class="grid gap-2 sm:grid-cols-2">
+                              {#each card.questionImages as image (image.id)}
+                                <div class="relative overflow-hidden rounded-xl border bg-background/80 p-2">
+                                  <img src={`data:${image.mimeType};base64,${image.dataBase64}`} alt="Изображение вопроса" class="h-28 w-full rounded-lg object-cover" />
+                                  <Button variant="outline" size="icon-xs" class="absolute top-3 right-3" onclick={() => removeCardImage(index, 'questionImages', image.id)} aria-label="Удалить изображение вопроса">
+                                    <X class="size-3" />
+                                  </Button>
+                                </div>
+                              {/each}
+                            </div>
+                          {/if}
+                        </label>
+                        <label class="flex flex-col gap-1">
+                          <span class="flex items-center justify-between gap-3 font-medium">
+                            <span>Ответ</span>
+                            <Button variant="outline" size="sm" onclick={() => openImagePicker(index, 'answerImages')} disabled={card.answerImages.length >= 5} aria-label="Добавить изображение">
+                              <ImagePlus class="size-4" />
+                            </Button>
+                          </span>
+                          <textarea
+                            value={card.answer}
+                            class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 h-15 overflow-auto resize-y rounded-xl border bg-transparent px-3 py-2 outline-none focus-visible:ring-3"
+                            oninput={(event) => updateCardField(index, 'answer', event.currentTarget.value)}
+                            onpaste={(event) => void handlePasteImage(event, index, 'answerImages')}
+                          ></textarea>
+                          {#if card.answerImages.length > 0}
+                            <div class="grid gap-2 sm:grid-cols-2">
+                              {#each card.answerImages as image (image.id)}
+                                <div class="relative overflow-hidden rounded-xl border bg-background/80 p-2">
+                                  <img src={`data:${image.mimeType};base64,${image.dataBase64}`} alt="Изображение ответа" class="h-28 w-full rounded-lg object-cover" />
+                                  <Button variant="outline" size="icon-xs" class="absolute top-3 right-3" onclick={() => removeCardImage(index, 'answerImages', image.id)} aria-label="Удалить изображение ответа">
+                                    <X class="size-3" />
+                                  </Button>
+                                </div>
+                              {/each}
+                            </div>
+                          {/if}
+                        </label>
+                        <label class="flex flex-col gap-1">
+                          <span class="font-medium">Ремарка</span>
+                          <textarea
+                            value={card.remarks}
+                            class="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 h-10 overflow-auto resize-y rounded-xl border bg-transparent px-3 py-2 outline-none focus-visible:ring-3"
+                            oninput={(event) => updateCardField(index, 'remarks', event.currentTarget.value)}
+                          ></textarea>
+                        </label>
+                      </section>
+                    {/each}
                   </div>
                 </div>
               {/if}
@@ -442,29 +601,32 @@ REMARK:: `
         </div>
       </div>
 
-      {#if createError}
-        <p class="text-sm text-destructive">{createError}</p>
-      {/if}
-      {#if createStatus}
-        <p class={`text-sm ${createError ? 'text-destructive' : 'text-muted-foreground'}`}>{createStatus}</p>
-      {/if}
-      {#if loadLinkError}
-        <p class="text-sm text-destructive">{loadLinkError}</p>
-      {/if}
-      {#if uploadError}
-        <p class="text-sm text-destructive">{uploadError}</p>
-      {/if}
-    </Card.Content>
-    <Card.Footer class="justify-between gap-3 max-sm:flex-col max-sm:items-stretch">
-      <p class="text-sm text-muted-foreground">
-        {copyState === 'done' ? 'Промпт скопирован.' : ''}
-      </p>
-      <div class="flex gap-3 max-sm:flex-col">
-        <Button variant="outline" size="lg" onclick={onLoadLink}>Открыть по ссылке</Button>
-        <Button size="lg" onclick={() => void handleCreateSet()} disabled={isCreating || !sourceText.trim()}>
-          {isCreating ? createStatus || 'Создание...' : 'Создать набор'}
-        </Button>
+      <div class="mt-5 flex flex-col gap-3 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="space-y-1 text-sm">
+          {#if createError}
+            <p class="text-destructive">{createError}</p>
+          {/if}
+          {#if createStatus}
+            <p class={createError ? 'text-destructive' : 'text-muted-foreground'}>{createStatus}</p>
+          {/if}
+          {#if loadLinkError}
+            <p class="text-destructive">{loadLinkError}</p>
+          {/if}
+          {#if uploadError}
+            <p class="text-destructive">{uploadError}</p>
+          {/if}
+          {#if copyState === 'done'}
+            <p class="text-muted-foreground">Промпт скопирован.</p>
+          {/if}
+        </div>
+
+        <div class="flex gap-3 max-sm:flex-col">
+          <Button variant="outline" size="lg" onclick={onLoadLink}>Открыть по ссылке</Button>
+          <Button size="lg" onclick={() => void handleCreateSet()} disabled={isCreating || !sourceText.trim()}>
+            {isCreating ? createStatus || 'Создание...' : 'Создать набор'}
+          </Button>
+        </div>
       </div>
-    </Card.Footer>
-  </Card.Root>
+    </div>
+  </div>
 </section>

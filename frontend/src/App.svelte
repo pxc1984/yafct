@@ -23,12 +23,24 @@
     updatedAt: string
   }
 
+  type RecentSession = SessionRecord & {
+    cardsetId: string
+    cardsetTitle: string
+    cardsetAuthor: string
+  }
+
+  type StoredCardsetMeta = {
+    title: string
+    author: string
+  }
+
   type Route =
     | { name: 'home' }
     | { name: 'cardset'; cardsetId: string }
     | { name: 'session'; cardsetId: string; sessionId: string }
 
   const STORAGE_KEY = 'flashcards-trainer-sessions'
+  const CARDSET_META_STORAGE_KEY = 'flashcards-trainer-cardset-meta'
   const SWIPE_HINT_STORAGE_KEY = 'flashcards-trainer-swipe-hint-seen'
   const promptText = promptTemplate.trim()
 
@@ -46,6 +58,7 @@
   let loadLinkError = $state('')
 
   let sessions = $state<SessionRecord[]>([])
+  let recentSessions = $state<RecentSession[]>([])
   let sessionsLoading = $state(false)
   let sessionListError = $state('')
   let cardSetDetails = $state<CardSet | null>(null)
@@ -153,6 +166,66 @@
     }
   }
 
+  function readStoredCardsetMeta() {
+    if (typeof localStorage === 'undefined') {
+      return {}
+    }
+
+    const raw = localStorage.getItem(CARDSET_META_STORAGE_KEY)
+
+    if (!raw) {
+      return {}
+    }
+
+    try {
+      return JSON.parse(raw) as Record<string, StoredCardsetMeta>
+    } catch {
+      return {}
+    }
+  }
+
+  function storeCardsetMeta(cardsetId: string, meta: StoredCardsetMeta) {
+    if (typeof localStorage === 'undefined') {
+      return
+    }
+
+    const parsed = readStoredCardsetMeta()
+    parsed[cardsetId] = meta
+    localStorage.setItem(CARDSET_META_STORAGE_KEY, JSON.stringify(parsed))
+  }
+
+  function syncRecentSessions() {
+    if (typeof localStorage === 'undefined') {
+      recentSessions = []
+      return
+    }
+
+    const raw = localStorage.getItem(STORAGE_KEY)
+
+    if (!raw) {
+      recentSessions = []
+      return
+    }
+
+    try {
+      const cardsetMeta = readStoredCardsetMeta()
+      const parsed = JSON.parse(raw) as Record<string, SessionRecord[]>
+      recentSessions = Object.entries(parsed)
+        .flatMap(([cardsetId, cardsetSessions]) =>
+          (Array.isArray(cardsetSessions) ? cardsetSessions : []).map((session) => ({
+            ...session,
+            cardsetId,
+            cardsetTitle: cardsetMeta[cardsetId]?.title || cardsetId,
+            cardsetAuthor: cardsetMeta[cardsetId]?.author || '',
+          })),
+        )
+        .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
+        .slice(0, 8)
+    } catch {
+      recentSessions = []
+    }
+  }
+
   function storeSession(cardsetId: string, sessionId: string) {
     if (typeof localStorage === 'undefined') {
       return
@@ -168,6 +241,7 @@
 
     parsed[cardsetId] = next
     localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed))
+    syncRecentSessions()
   }
 
   function syncSessions(cardsetId: string) {
@@ -186,6 +260,7 @@
     parsed[cardsetId] = current.filter((session) => session.id !== sessionId)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed))
     syncSessions(cardsetId)
+    syncRecentSessions()
   }
 
   function syncSwipeHint() {
@@ -323,6 +398,11 @@
       const { id } = await createCardSet(payload)
       createStatus = 'Открываю созданный набор...'
       navigate(`/${id}`)
+      storeCardsetMeta(id, {
+        title: setTitle.trim() || id,
+        author: setAuthor.trim(),
+      })
+      syncRecentSessions()
     } catch (error) {
       createError = error instanceof Error ? error.message : 'Не удалось создать набор.'
       createStatus = 'Создание остановилось с ошибкой.'
@@ -357,6 +437,11 @@
 
     try {
       cardSetDetails = await getCardSet(cardsetId)
+      storeCardsetMeta(cardsetId, {
+        title: cardSetDetails.title || cardsetId,
+        author: cardSetDetails.author || '',
+      })
+      syncRecentSessions()
     } catch (error) {
       cardSetError = error instanceof Error ? error.message : 'Не удалось загрузить набор.'
     } finally {
@@ -423,6 +508,7 @@
       return
     }
 
+    event.preventDefault()
     event.currentTarget instanceof HTMLElement && event.currentTarget.setPointerCapture(event.pointerId)
 
     activePointerId = event.pointerId
@@ -435,6 +521,7 @@
       return
     }
 
+    event.preventDefault()
     dragOffset = event.clientX - dragStartX
   }
 
@@ -443,7 +530,11 @@
       return
     }
 
-    event.currentTarget instanceof HTMLElement && event.currentTarget.releasePointerCapture(event.pointerId)
+    event.preventDefault()
+
+    if (event.currentTarget instanceof HTMLElement && event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
 
     isDragging = false
     activePointerId = null
@@ -499,6 +590,10 @@
   })
 
   $effect(() => {
+    if (route.name === 'home') {
+      syncRecentSessions()
+    }
+
     if (route.name === 'cardset') {
       syncSessions(route.cardsetId)
       void loadCardSet(route.cardsetId)
@@ -508,6 +603,30 @@
       syncSwipeHint()
       cardSetDetails = null
       void loadTraining(route.cardsetId, route.sessionId)
+    }
+  })
+
+  $effect(() => {
+    if (!isDragging || activePointerId === null) {
+      return
+    }
+
+    const onWindowPointerMove = (event: PointerEvent) => {
+      void handlePointerMove(event)
+    }
+
+    const onWindowPointerUp = (event: PointerEvent) => {
+      void handlePointerUp(event)
+    }
+
+    window.addEventListener('pointermove', onWindowPointerMove, { passive: false })
+    window.addEventListener('pointerup', onWindowPointerUp, { passive: false })
+    window.addEventListener('pointercancel', onWindowPointerUp, { passive: false })
+
+    return () => {
+      window.removeEventListener('pointermove', onWindowPointerMove)
+      window.removeEventListener('pointerup', onWindowPointerUp)
+      window.removeEventListener('pointercancel', onWindowPointerUp)
     }
   })
 
@@ -569,15 +688,18 @@
         bind:setAuthor
         {parseCardData}
         resolveImageById={(imageId) => uploadedImages[imageId] ?? null}
+        {recentSessions}
         isCreating={isCreating}
         createError={createError}
         {createStatus}
         copyState={copyState}
         {loadLinkError}
+        {formatDate}
         onCopyPrompt={copyPrompt}
         onLoadLink={loadLink}
         onUploadImage={handleUploadImage}
         onCreateSet={createSet}
+        onNavigate={navigate}
       />
     {/if}
 

@@ -81,15 +81,18 @@ const defaultProps = {
   setAuthor: '',
   parseCardData,
   resolveImageById: () => null,
+  recentSessions: [],
   isCreating: false,
   createError: '',
   createStatus: '',
   copyState: 'idle' as const,
   loadLinkError: '',
+  formatDate: (value: string) => value,
   onCopyPrompt: () => {},
   onLoadLink: () => {},
   onUploadImage: async () => ({ id: 'img-1', mimeType: 'image/png', dataBase64: 'aGVsbG8=' }),
   onCreateSet: () => {},
+  onNavigate: () => {},
 }
 
 describe('HomePage cards list preview', () => {
@@ -101,7 +104,7 @@ describe('HomePage cards list preview', () => {
       },
     })
 
-    await fireEvent.click(screen.getByRole('button', { name: 'Показать список' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Показать список карточек' }))
 
     const viewport = screen.getByTestId('cards-list-container')
     const lastCard = screen.getByTestId('preview-card-49')
@@ -133,7 +136,7 @@ describe('HomePage cards list preview', () => {
       },
     })
 
-    await fireEvent.click(screen.getByRole('button', { name: 'Показать список' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Показать список карточек' }))
     await fireEvent.click(screen.getByRole('button', { name: 'Добавить карточку' }))
 
     expect(screen.getByTestId('preview-card-2')).toBeInTheDocument()
@@ -155,7 +158,7 @@ describe('HomePage cards list preview', () => {
       },
     })
 
-    await fireEvent.click(screen.getByRole('button', { name: 'Показать список' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Показать список карточек' }))
 
     const deleteButton = screen.getAllByRole('button', { name: 'Удалить карточку' })[0]
     await fireEvent.click(deleteButton)
@@ -179,7 +182,7 @@ describe('HomePage cards list preview', () => {
       },
     })
 
-    await fireEvent.click(screen.getByRole('button', { name: 'Показать список' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Показать список карточек' }))
     await fireEvent.click(screen.getAllByRole('button', { name: 'Удалить карточку' })[0])
 
     await vi.advanceTimersByTimeAsync(4000)
