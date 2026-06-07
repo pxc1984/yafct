@@ -53,6 +53,11 @@
   } = $props()
 
   let fogRevealed = $state(false)
+
+  $effect(() => {
+    trainingState?.card
+    fogRevealed = false
+  })
 </script>
 
 <section class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 overflow-x-hidden pb-28 sm:pb-8">
