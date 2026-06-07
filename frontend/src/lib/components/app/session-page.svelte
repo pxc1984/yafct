@@ -51,6 +51,8 @@
     onPointerMove: (event: PointerEvent) => void
     onPointerUp: (event: PointerEvent) => void | Promise<void>
   } = $props()
+
+  let fogRevealed = $state(false)
 </script>
 
 <section class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 overflow-x-hidden pb-28 sm:pb-8">
@@ -111,26 +113,29 @@
 
             <div class="rounded-2xl border bg-background/60 p-4">
               <p class="mb-2 text-sm font-medium text-muted-foreground">Ответ</p>
-              {#if isAnswerVisible}
-                <RichMathText text={trainingState.card.answer} class="text-lg leading-relaxed" />
-                {#if trainingState.card.answerImages.length > 0}
-                  <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                    {#each trainingState.card.answerImages as image (image.id)}
-                      <img src={`data:${image.mimeType};base64,${image.dataBase64}`} alt="Изображение ответа" class="pointer-events-none max-h-72 w-full rounded-2xl border bg-background/60 object-contain" draggable="false" />
-                    {/each}
-                  </div>
-                {/if}
-              {:else}
-                <button
-                  class="group relative w-full cursor-pointer overflow-hidden rounded-lg text-left [background:none] [border:none] [padding:0]"
-                  onclick={onToggleAnswer}
-                >
+              <div
+                class="group relative cursor-pointer overflow-hidden rounded-lg"
+                onclick={() => fogRevealed = true}
+                role="button"
+                tabindex="0"
+                onkeydown={(e) => e.key === 'Enter' && (fogRevealed = true)}
+              >
+                {#if !fogRevealed}
                   <div class="pointer-events-none absolute inset-0 z-10 rounded-lg bg-gradient-to-br from-muted/20 via-background/10 to-muted/20 opacity-80 transition-opacity duration-500 group-hover:opacity-0 group-focus-visible:opacity-0">
                     <div class="shimmer size-full" />
                   </div>
-                  <p class="fog-text text-lg text-muted-foreground">Нажми показать ответ или пробел.</p>
-                </button>
-              {/if}
+                {/if}
+                <div class="fog-text" class:revealed={fogRevealed}>
+                  <RichMathText text={trainingState.card.answer} class="text-lg leading-relaxed" />
+                  {#if trainingState.card.answerImages.length > 0}
+                    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                      {#each trainingState.card.answerImages as image (image.id)}
+                        <img src={`data:${image.mimeType};base64,${image.dataBase64}`} alt="Изображение ответа" class="pointer-events-none max-h-72 w-full rounded-2xl border bg-background/60 object-contain" draggable="false" />
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              </div>
             </div>
           {:else}
             <div class="space-y-3 py-8 text-center">
@@ -181,14 +186,9 @@
   {/if}
 
   {#if trainingState?.card && isMobile && showSwipeHint}
-    <div class="fixed inset-x-0 bottom-0 border-t bg-background/95 p-4 backdrop-blur">
-      <Button variant="outline" class="flex-1" onclick={onToggleAnswer}>Показать / скрыть ответ</Button>
-    </div>
-  {:else if trainingState?.card && isMobile}
-    <div class="fixed inset-x-0 bottom-0 border-t bg-background/95 p-4 backdrop-blur">
-      <div class="mx-auto flex max-w-4xl items-center gap-3">
-        <Button variant="outline" class="flex-1" onclick={onToggleAnswer}>Показать / скрыть ответ</Button>
-      </div>
+    <div class="fixed inset-x-0 bottom-0 border-t bg-background/95 p-4 backdrop-blur flex flex-row gap-2">
+      <Button variant="outline" class="flex-1">&lt;- Не знаю</Button>
+      <Button variant="outline" class="flex-1">Знаю -&gt;</Button>
     </div>
   {/if}
 </section>
@@ -199,7 +199,8 @@
     transition: filter 0.5s ease;
   }
   .group:hover .fog-text,
-  .group:focus-visible .fog-text {
+  .group:focus-visible .fog-text,
+  .fog-text.revealed {
     filter: blur(0);
   }
   .shimmer {
