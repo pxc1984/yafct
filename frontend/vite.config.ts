@@ -5,7 +5,7 @@ import path from "node:path";
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: "./",
+  base: "/",
   envPrefix: ["VITE_", "API_"],
   plugins: [svelte(), tailwindcss()],
   resolve: {
