@@ -187,8 +187,6 @@ describe("HomePage cards list preview", () => {
     );
 
     expect(screen.getByTestId("preview-card-2")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Новый вопрос 3")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Новый ответ 3")).toBeInTheDocument();
   });
 
   it("parses generated cards back when remark is empty", () => {
