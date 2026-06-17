@@ -137,7 +137,7 @@
   }
 
   function buildAbsoluteUrl(path: string) {
-    return new URL(path, window.location.origin).toString()
+    return new URL(path, "https://fc.iamamaev.ru").toString()
   }
 
   async function copyLink(path: string, target: 'cardset' | 'session') {
