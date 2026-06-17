@@ -4,7 +4,7 @@
   import Keyboard from '@lucide/svelte/icons/keyboard'
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw'
 
-  import type { SessionState } from '$lib/api/flashcards'
+  import type { CardImage, SessionState } from '$lib/api/flashcards'
   import RichMathText from '$lib/components/rich-math-text.svelte'
   import { Badge } from '$lib/components/ui/badge'
   import { Button } from '$lib/components/ui/button'
@@ -52,9 +52,53 @@
     onPointerUp: (event: PointerEvent) => void | Promise<void>
   } = $props()
 
+  let fullscreenImage = $state<CardImage | null>(null)
+
+  function openFullscreenImage(image: CardImage) {
+    fullscreenImage = image
+  }
+
+  function closeFullscreenImage() {
+    fullscreenImage = null
+  }
+
+  function handleQuestionImageClick(event: MouseEvent, image: CardImage) {
+    event.stopPropagation()
+    openFullscreenImage(image)
+  }
+
+  function handleAnswerImageClick(event: MouseEvent, image: CardImage) {
+    if (!isAnswerVisible) {
+      return
+    }
+
+    event.stopPropagation()
+    openFullscreenImage(image)
+  }
+
+  function handleFullscreenKeydown(event: KeyboardEvent, image: CardImage, allowOpen: boolean) {
+    if (!allowOpen) {
+      return
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      event.stopPropagation()
+      openFullscreenImage(image)
+    }
+  }
+
+  function handleWindowKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape' && fullscreenImage) {
+      closeFullscreenImage()
+    }
+  }
+
 </script>
 
-<section class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 overflow-x-hidden pb-28 sm:pb-8">
+<svelte:window onkeydown={handleWindowKeydown} />
+
+<section class="mx-auto flex w-full max-w-8xl flex-1 flex-col gap-4 overflow-x-hidden pb-28 sm:pb-8">
   <div class="flex items-center justify-between gap-3">
     <div>
       <p class="text-sm text-muted-foreground">{trainingState?.author ? `Автор: ${trainingState.author}` : `${cardsetId}`}</p>
@@ -83,11 +127,11 @@
 
   <div class="grid gap-4 md:grid-cols-[1fr_220px]">
     <Card.Root
-      class={`select-none overflow-hidden transition-transform ${isDragging ? '' : 'duration-200'} ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-      style={`transform: translate3d(${dragOffset}px, 0, 0) rotate(${Math.max(-10, Math.min(10, dragOffset / 24))}deg);`}
+      class={`select-none overflow-hidden transition-transform ${isMobile ? (isDragging ? '' : 'duration-200') : 'duration-200'} ${isMobile ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
+      style={isMobile ? `transform: translate3d(${dragOffset}px, 0, 0) rotate(${Math.max(-10, Math.min(10, dragOffset / 24))}deg);` : undefined}
       data-dragging={isDragging}
       data-swipe-card
-      onpointerdown={onPointerDown}
+      onpointerdown={isMobile ? onPointerDown : undefined}
     >
       <div class="h-full">
         <Card.Content class="space-y-6">
@@ -99,9 +143,19 @@
             <div class="space-y-3">
               <RichMathText text={trainingState.card.question} class="text-2xl leading-tight font-semibold sm:text-3xl" />
               {#if trainingState.card.questionImages.length > 0}
-                <div class="grid gap-3 sm:grid-cols-2">
+                <div class={trainingState.card.questionImages.length === 1 ? 'space-y-3' : 'grid gap-3 sm:grid-cols-2'}>
                   {#each trainingState.card.questionImages as image (image.id)}
-                    <img src={`data:${image.mimeType};base64,${image.dataBase64}`} alt="Изображение вопроса" class="pointer-events-none max-h-72 w-full rounded-2xl border bg-background/60 object-contain" draggable="false" />
+                    <img
+                      src={`data:${image.mimeType};base64,${image.dataBase64}`}
+                      alt="Изображение вопроса"
+                      class={`w-full cursor-zoom-in rounded-2xl border bg-background/60 object-contain ${trainingState.card.questionImages.length === 1 ? 'h-auto max-h-none' : 'max-h-72'}`}
+                      draggable="false"
+                      role="button"
+                      tabindex="0"
+                      onpointerdown={(event) => event.stopPropagation()}
+                      onclick={(event) => handleQuestionImageClick(event, image)}
+                      onkeydown={(event) => handleFullscreenKeydown(event, image, true)}
+                    />
                   {/each}
                 </div>
               {/if}
@@ -132,9 +186,22 @@
                 <div class="fog-text" class:revealed={isAnswerVisible}>
                   <RichMathText text={trainingState.card.answer} class="text-lg leading-relaxed" />
                   {#if trainingState.card.answerImages.length > 0}
-                    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div
+                      class={`mt-4 ${trainingState.card.answerImages.length === 1 ? 'space-y-3' : 'grid gap-3 sm:grid-cols-2'}`}
+                      onclick={(event) => event.stopPropagation()}
+                    >
                       {#each trainingState.card.answerImages as image (image.id)}
-                        <img src={`data:${image.mimeType};base64,${image.dataBase64}`} alt="Изображение ответа" class="pointer-events-none max-h-72 w-full rounded-2xl border bg-background/60 object-contain" draggable="false" />
+                        <img
+                          src={`data:${image.mimeType};base64,${image.dataBase64}`}
+                          alt="Изображение ответа"
+                          class={`w-full rounded-2xl border bg-background/60 object-contain ${isAnswerVisible ? 'cursor-zoom-in' : ''} ${trainingState.card.answerImages.length === 1 ? 'h-auto max-h-none' : 'max-h-72'}`}
+                          draggable="false"
+                          role={isAnswerVisible ? 'button' : undefined}
+                          tabindex={isAnswerVisible ? 0 : -1}
+                          onpointerdown={(event) => event.stopPropagation()}
+                          onclick={(event) => handleAnswerImageClick(event, image)}
+                          onkeydown={(event) => handleFullscreenKeydown(event, image, isAnswerVisible)}
+                        />
                       {/each}
                     </div>
                   {/if}
@@ -193,6 +260,30 @@
     <div class="fixed inset-x-0 bottom-0 border-t bg-background/95 p-4 backdrop-blur flex flex-row gap-2">
       <Button variant="outline" class="flex-1">&lt;- Не знаю</Button>
       <Button variant="outline" class="flex-1">Знаю -&gt;</Button>
+    </div>
+  {/if}
+
+  {#if fullscreenImage}
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-background/95 p-4 backdrop-blur-sm"
+      role="button"
+      tabindex="0"
+      aria-label="Закрыть полноэкранное изображение"
+      onclick={closeFullscreenImage}
+      onkeydown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape') {
+          event.preventDefault()
+          closeFullscreenImage()
+        }
+      }}
+    >
+      <img
+        src={`data:${fullscreenImage.mimeType};base64,${fullscreenImage.dataBase64}`}
+        alt="Полноэкранное изображение"
+        class="max-h-full max-w-full object-contain"
+        draggable="false"
+        onclick={(event) => event.stopPropagation()}
+      />
     </div>
   {/if}
 </section>

@@ -536,7 +536,7 @@
   }
 
   function handlePointerDown(event: PointerEvent) {
-    if (!hasActiveCard || trainingLoading) {
+    if (!isMobile || !hasActiveCard || trainingLoading) {
       return
     }
 
@@ -737,8 +737,10 @@
     onNavigate={navigate}
     {formatDate}
   />
-  <main class="min-h-screen bg-background text-foreground w-full">
-    <Sidebar.Trigger/>
+  <main class="relative min-h-screen w-full bg-background text-foreground">
+    <div class="absolute top-0 left-0 z-20 sm:top-0 sm:left-0 sm:z-30">
+      <Sidebar.Trigger />
+    </div>
     <div class="mx-auto flex min-h-screen w-full flex-col px-4 py-6 sm:px-6 sm:py-8">
       {#if route.name === 'home'}
         <HomePage

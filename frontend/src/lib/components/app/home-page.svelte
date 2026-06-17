@@ -144,8 +144,8 @@ REMARK:: `
     previewCards = [
       ...previewCards,
       {
-        question: `Новый вопрос ${nextCardNumber}`,
-        answer: `Новый ответ ${nextCardNumber}`,
+        question: ``,
+        answer: ``,
         remarks: '',
         questionImages: [],
         answerImages: [],
