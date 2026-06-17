@@ -15,6 +15,12 @@ export default tseslint.config(
     },
   },
   {
+    files: ["**/*.{ts,tsx,mts,cts}", "**/*.svelte.ts"],
+    languageOptions: {
+      parser: tseslint.parser,
+    },
+  },
+  {
     files: ["**/*.svelte"],
     languageOptions: {
       parserOptions: {
@@ -23,6 +29,6 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ["dist/**", "node_modules/**"],
+    ignores: ["dist/**", "node_modules/**", "android/**/build/**", "android/.gradle/**", "android/app/src/main/assets/**"],
   },
 );

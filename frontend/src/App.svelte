@@ -57,7 +57,6 @@
   let createStatus = $state('')
   let copyState = $state<'idle' | 'done'>('idle')
   let cardsetLinkCopyState = $state<'idle' | 'done'>('idle')
-  let sessionLinkCopyState = $state<'idle' | 'done'>('idle')
   let loadLinkError = $state('')
 
   let sidebarCopyState = $state<'idle' | 'done'>('idle')
@@ -145,17 +144,12 @@
 
     if (target === 'cardset') {
       cardsetLinkCopyState = 'done'
-    } else {
-      sessionLinkCopyState = 'done'
     }
 
     window.setTimeout(() => {
       if (target === 'cardset') {
         cardsetLinkCopyState = 'idle'
-        return
       }
-
-      sessionLinkCopyState = 'idle'
     }, 1500)
   }
 
@@ -744,14 +738,12 @@
     <div class="mx-auto flex min-h-screen w-full flex-col px-4 py-6 sm:px-6 sm:py-8">
       {#if route.name === 'home'}
         <HomePage
-                promptText={promptText}
                 bind:sourceText
                 bind:setTitle
                 bind:setDescription
                 bind:setAuthor
                 {parseCardData}
                 resolveImageById={(imageId) => uploadedImages[imageId] ?? null}
-                {recentSessions}
                 isCreating={isCreating}
                 createError={createError}
                 {createStatus}
@@ -797,15 +789,12 @@
                 {progressValue}
                 {isMobile}
                 {showSwipeHint}
-                copyLinkState={sessionLinkCopyState}
                 onNavigate={navigate}
                 onCopyLink={() => void copyLink(`/${activeCardsetId}/${activeSessionId}`, 'session')}
                 onToggleAnswer={toggleAnswer}
                 onMarkKnown={() => void markKnown()}
                 onMarkUnknown={() => void markUnknown()}
                 onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={(event) => void handlePointerUp(event)}
         />
       {/if}
     </div>

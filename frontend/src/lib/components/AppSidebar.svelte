@@ -29,6 +29,16 @@
     onCopyLink = () => {},
     onNavigate = () => {},
     formatDate = () => '',
+  }: {
+    cardSets?: CardSetItem[]
+    recentSessions?: RecentSessionItem[]
+    activeCardsetId?: string
+    activeSessionId?: string
+    copyLinkState?: 'idle' | 'done'
+    onCreateCardSet?: () => void | Promise<void>
+    onCopyLink?: () => void | Promise<void>
+    onNavigate?: (path: string) => void
+    formatDate?: (value: string) => string
   } = $props()
 </script>
 

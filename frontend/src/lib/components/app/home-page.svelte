@@ -12,23 +12,13 @@
 
   import { Button } from '$lib/components/ui/button'
 
-  type RecentSession = {
-    cardsetId: string
-    cardsetTitle: string
-    cardsetAuthor: string
-    id: string
-    updatedAt: string
-  }
-
   let {
-    promptText,
     sourceText = $bindable(''),
     setTitle = $bindable(''),
     setDescription = $bindable(''),
     setAuthor = $bindable(''),
     parseCardData,
     resolveImageById,
-    recentSessions,
     isCreating,
     createError,
     createStatus,
@@ -39,14 +29,12 @@
     onUploadImage,
     onCreateSet,
   }: {
-    promptText: string
     sourceText: string
     setTitle: string
     setDescription: string
     setAuthor: string
     parseCardData: (input: string) => CardData[]
     resolveImageById: (imageId: string) => CardImage | null
-    recentSessions: RecentSession[]
     isCreating: boolean
     createError: string
     createStatus: string
@@ -79,7 +67,6 @@ REMARK:: `
   let fileInput: HTMLInputElement | null = null
   let promptSection: HTMLElement | null = null
   let composerSection: HTMLElement | null = null
-  let historySection: HTMLElement | null = null
 
   function formatCardData(cards: CardData[]) {
     return cards
@@ -140,7 +127,6 @@ REMARK:: `
   function addPreviewCard() {
     clearPendingDelete()
 
-    const nextCardNumber = previewCards.length + 1
     previewCards = [
       ...previewCards,
       {

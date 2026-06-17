@@ -1,12 +1,10 @@
 <script lang="ts">
-  import ArrowLeft from '@lucide/svelte/icons/arrow-left'
   import Copy from '@lucide/svelte/icons/copy'
   import Keyboard from '@lucide/svelte/icons/keyboard'
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw'
 
   import type { CardImage, SessionState } from '$lib/api/flashcards'
   import RichMathText from '$lib/components/rich-math-text.svelte'
-  import { Badge } from '$lib/components/ui/badge'
   import { Button } from '$lib/components/ui/button'
   import * as Card from '$lib/components/ui/card'
 
@@ -21,15 +19,12 @@
     progressValue,
     isMobile,
     showSwipeHint,
-    copyLinkState,
     onNavigate,
     onCopyLink,
     onToggleAnswer,
     onMarkKnown,
     onMarkUnknown,
     onPointerDown,
-    onPointerMove,
-    onPointerUp,
   }: {
     cardsetId: string
     trainingState: SessionState | null
@@ -41,15 +36,12 @@
     progressValue: number
     isMobile: boolean
     showSwipeHint: boolean
-    copyLinkState: 'idle' | 'done'
     onNavigate: (path: string) => void
     onCopyLink: () => void | Promise<void>
     onToggleAnswer: () => void
     onMarkKnown: () => void | Promise<void>
     onMarkUnknown: () => void | Promise<void>
     onPointerDown: (event: PointerEvent) => void
-    onPointerMove: (event: PointerEvent) => void
-    onPointerUp: (event: PointerEvent) => void | Promise<void>
   } = $props()
 
   let fullscreenImage = $state<CardImage | null>(null)
@@ -74,18 +66,6 @@
 
     event.stopPropagation()
     openFullscreenImage(image)
-  }
-
-  function handleFullscreenKeydown(event: KeyboardEvent, image: CardImage, allowOpen: boolean) {
-    if (!allowOpen) {
-      return
-    }
-
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      event.stopPropagation()
-      openFullscreenImage(image)
-    }
   }
 
   function handleWindowKeydown(event: KeyboardEvent) {
@@ -145,17 +125,19 @@
               {#if trainingState.card.questionImages.length > 0}
                 <div class={trainingState.card.questionImages.length === 1 ? 'space-y-3' : 'grid gap-3 sm:grid-cols-2'}>
                   {#each trainingState.card.questionImages as image (image.id)}
-                    <img
-                      src={`data:${image.mimeType};base64,${image.dataBase64}`}
-                      alt="Изображение вопроса"
-                      class={`w-full cursor-zoom-in rounded-2xl border bg-background/60 object-contain ${trainingState.card.questionImages.length === 1 ? 'h-auto max-h-none' : 'max-h-72'}`}
-                      draggable="false"
-                      role="button"
-                      tabindex="0"
+                    <button
+                      type="button"
+                      class="block w-full cursor-zoom-in rounded-2xl"
                       onpointerdown={(event) => event.stopPropagation()}
                       onclick={(event) => handleQuestionImageClick(event, image)}
-                      onkeydown={(event) => handleFullscreenKeydown(event, image, true)}
-                    />
+                    >
+                      <img
+                        src={`data:${image.mimeType};base64,${image.dataBase64}`}
+                        alt="Изображение вопроса"
+                        class={`w-full rounded-2xl border bg-background/60 object-contain ${trainingState.card.questionImages.length === 1 ? 'h-auto max-h-none' : 'max-h-72'}`}
+                        draggable="false"
+                      />
+                    </button>
                   {/each}
                 </div>
               {/if}
@@ -186,22 +168,30 @@
                 <div class="fog-text" class:revealed={isAnswerVisible}>
                   <RichMathText text={trainingState.card.answer} class="text-lg leading-relaxed" />
                   {#if trainingState.card.answerImages.length > 0}
-                    <div
-                      class={`mt-4 ${trainingState.card.answerImages.length === 1 ? 'space-y-3' : 'grid gap-3 sm:grid-cols-2'}`}
-                      onclick={(event) => event.stopPropagation()}
-                    >
+                    <div class={`mt-4 ${trainingState.card.answerImages.length === 1 ? 'space-y-3' : 'grid gap-3 sm:grid-cols-2'}`}>
                       {#each trainingState.card.answerImages as image (image.id)}
-                        <img
-                          src={`data:${image.mimeType};base64,${image.dataBase64}`}
-                          alt="Изображение ответа"
-                          class={`w-full rounded-2xl border bg-background/60 object-contain ${isAnswerVisible ? 'cursor-zoom-in' : ''} ${trainingState.card.answerImages.length === 1 ? 'h-auto max-h-none' : 'max-h-72'}`}
-                          draggable="false"
-                          role={isAnswerVisible ? 'button' : undefined}
-                          tabindex={isAnswerVisible ? 0 : -1}
-                          onpointerdown={(event) => event.stopPropagation()}
-                          onclick={(event) => handleAnswerImageClick(event, image)}
-                          onkeydown={(event) => handleFullscreenKeydown(event, image, isAnswerVisible)}
-                        />
+                        {#if isAnswerVisible}
+                          <button
+                            type="button"
+                            class="block w-full cursor-zoom-in rounded-2xl"
+                            onpointerdown={(event) => event.stopPropagation()}
+                            onclick={(event) => handleAnswerImageClick(event, image)}
+                          >
+                            <img
+                              src={`data:${image.mimeType};base64,${image.dataBase64}`}
+                              alt="Изображение ответа"
+                              class={`w-full rounded-2xl border bg-background/60 object-contain ${trainingState.card.answerImages.length === 1 ? 'h-auto max-h-none' : 'max-h-72'}`}
+                              draggable="false"
+                            />
+                          </button>
+                        {:else}
+                          <img
+                            src={`data:${image.mimeType};base64,${image.dataBase64}`}
+                            alt="Изображение ответа"
+                            class={`w-full rounded-2xl border bg-background/60 object-contain ${trainingState.card.answerImages.length === 1 ? 'h-auto max-h-none' : 'max-h-72'}`}
+                            draggable="false"
+                          />
+                        {/if}
                       {/each}
                     </div>
                   {/if}
@@ -277,13 +267,19 @@
         }
       }}
     >
-      <img
-        src={`data:${fullscreenImage.mimeType};base64,${fullscreenImage.dataBase64}`}
-        alt="Полноэкранное изображение"
-        class="max-h-full max-w-full object-contain"
-        draggable="false"
+      <button
+        type="button"
+        class="block max-h-full max-w-full"
+        aria-label="Полноэкранное изображение"
         onclick={(event) => event.stopPropagation()}
-      />
+      >
+        <img
+          src={`data:${fullscreenImage.mimeType};base64,${fullscreenImage.dataBase64}`}
+          alt="Полноэкранное изображение"
+          class="max-h-full max-w-full object-contain"
+          draggable="false"
+        />
+      </button>
     </div>
   {/if}
 </section>
