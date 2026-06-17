@@ -1,4 +1,7 @@
 <script lang="ts">
+  import X from '@lucide/svelte/icons/x'
+  import Panzoom from '@panzoom/panzoom'
+  import type { PanzoomObject } from '@panzoom/panzoom'
   import Copy from '@lucide/svelte/icons/copy'
   import Keyboard from '@lucide/svelte/icons/keyboard'
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw'
@@ -45,6 +48,9 @@
   } = $props()
 
   let fullscreenImage = $state<CardImage | null>(null)
+  let fullscreenViewport = $state<HTMLDivElement | null>(null)
+  let fullscreenImageElement = $state<HTMLImageElement | null>(null)
+  let fullscreenPanzoom: PanzoomObject | null = null
 
   function openFullscreenImage(image: CardImage) {
     fullscreenImage = image
@@ -73,6 +79,45 @@
       closeFullscreenImage()
     }
   }
+
+  function handleFullscreenBackdropClick(event: MouseEvent) {
+    if (event.target === event.currentTarget) {
+      closeFullscreenImage()
+    }
+  }
+
+  $effect(() => {
+    if (!fullscreenImage || !fullscreenViewport || !fullscreenImageElement) {
+      return
+    }
+
+    const viewport = fullscreenViewport
+    const imageElement = fullscreenImageElement
+    const panzoom = Panzoom(imageElement, {
+      contain: 'outside',
+      cursor: 'grab',
+      maxScale: 5,
+      minScale: 1,
+      step: 0.25,
+    })
+
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      panzoom.zoomWithWheel(event)
+    }
+
+    viewport.addEventListener('wheel', handleWheel, { passive: false })
+    fullscreenPanzoom = panzoom
+
+    return () => {
+      viewport.removeEventListener('wheel', handleWheel)
+      panzoom.destroy()
+      panzoom.resetStyle()
+      if (fullscreenPanzoom === panzoom) {
+        fullscreenPanzoom = null
+      }
+    }
+  })
 
 </script>
 
@@ -255,11 +300,11 @@
 
   {#if fullscreenImage}
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-background/95 p-4 backdrop-blur-sm"
+      class="fixed inset-0 z-50 flex bg-background/95 backdrop-blur-sm"
       role="button"
       tabindex="0"
       aria-label="Закрыть полноэкранное изображение"
-      onclick={closeFullscreenImage}
+      onclick={handleFullscreenBackdropClick}
       onkeydown={(event) => {
         if (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape') {
           event.preventDefault()
@@ -267,19 +312,24 @@
         }
       }}
     >
-      <button
-        type="button"
-        class="block max-h-full max-w-full"
-        aria-label="Полноэкранное изображение"
-        onclick={(event) => event.stopPropagation()}
+      <Button
+        variant="outline"
+        size="icon-sm"
+        class="absolute top-4 left-4 z-60"
+        aria-label="Закрыть изображение"
+        onclick={closeFullscreenImage}
       >
+        <X class="size-4" />
+      </Button>
+      <div bind:this={fullscreenViewport} class="flex h-full w-full overflow-hidden pt-12">
         <img
+          bind:this={fullscreenImageElement}
           src={`data:${fullscreenImage.mimeType};base64,${fullscreenImage.dataBase64}`}
           alt="Полноэкранное изображение"
-          class="max-h-full max-w-full object-contain"
+          class="max-h-full max-w-full touch-none object-contain"
           draggable="false"
         />
-      </button>
+      </div>
     </div>
   {/if}
 </section>
