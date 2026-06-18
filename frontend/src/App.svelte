@@ -482,11 +482,11 @@
   async function loadTraining(cardsetId: string, sessionId: string) {
     trainingLoading = true
     trainingError = ''
+    isAnswerVisible = false
+    dragOffset = 0
 
     try {
       trainingState = await getSessionState(cardsetId, sessionId)
-      isAnswerVisible = false
-      dragOffset = 0
       storeSession(cardsetId, sessionId)
     } catch (error) {
       trainingError = error instanceof Error ? error.message : 'Не удалось загрузить карточку.'
