@@ -10,6 +10,7 @@
   import RichMathText from '$lib/components/rich-math-text.svelte'
   import { Button } from '$lib/components/ui/button'
   import * as Card from '$lib/components/ui/card'
+  import { ShimmerOverlay } from '$lib/components/ui/shimmer-overlay'
 
   let {
     cardsetId,
@@ -206,9 +207,7 @@
                 }}
               >
                 {#if !isAnswerVisible}
-                  <div class="pointer-events-none absolute inset-0 z-10 rounded-lg bg-gradient-to-br from-muted/20 via-background/10 to-muted/20 opacity-80 transition-opacity duration-500">
-                    <div class="shimmer size-full"></div>
-                  </div>
+                  <ShimmerOverlay />
                 {/if}
                 <div class="fog-text" class:revealed={isAnswerVisible}>
                   <RichMathText text={trainingState.card.answer} class="text-lg leading-relaxed" />
@@ -341,26 +340,5 @@
   }
   .fog-text.revealed {
     filter: blur(0);
-  }
-  .shimmer {
-    position: relative;
-    overflow: hidden;
-  }
-  .shimmer::after {
-    content: '';
-    position: absolute;
-    inset: -50%;
-    background: linear-gradient(
-      135deg,
-      transparent 30%,
-      rgba(255, 255, 255, 0.06) 50%,
-      transparent 70%
-    );
-    background-size: 200% 200%;
-    animation: fog-shimmer 4s ease-in-out infinite;
-  }
-  @keyframes fog-shimmer {
-    0%, 100% { background-position: 0% 0%; }
-    50% { background-position: 100% 100%; }
   }
 </style>

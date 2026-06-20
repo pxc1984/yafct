@@ -8,6 +8,7 @@
   import { Badge } from '$lib/components/ui/badge'
   import { Button } from '$lib/components/ui/button'
   import * as Card from '$lib/components/ui/card'
+  import { ShimmerOverlay } from '$lib/components/ui/shimmer-overlay'
 
   type SessionRecord = {
     id: string
@@ -52,14 +53,32 @@
     <Card.Root>
       <Card.Header>
         <Badge variant="outline" class="w-fit">Набор</Badge>
-        <Card.Title class="break-words text-2xl">{cardSetDetails?.title || cardsetId}</Card.Title>
-        {#if cardSetDetails?.author}
-          <Card.Description>Автор: {cardSetDetails.author}</Card.Description>
+        {#if cardSetLoading}
+          <div class="space-y-3">
+            <div class="relative h-8 w-3/4 overflow-hidden rounded-lg bg-muted/40">
+              <ShimmerOverlay class="rounded-lg" />
+            </div>
+            <div class="relative h-5 w-1/2 overflow-hidden rounded-lg bg-muted/30">
+              <ShimmerOverlay class="rounded-lg" />
+            </div>
+          </div>
+        {:else}
+          <Card.Title class="break-words text-2xl">{cardSetDetails?.title || cardsetId}</Card.Title>
+          {#if cardSetDetails?.author}
+            <Card.Description>Автор: {cardSetDetails.author}</Card.Description>
+          {/if}
         {/if}
       </Card.Header>
       <Card.Content class="space-y-4">
         {#if cardSetLoading}
-          <div class="rounded-2xl border bg-background/60 p-4 text-sm text-muted-foreground">Загрузка описания...</div>
+          <div class="relative rounded-2xl border bg-background/60 p-4">
+            <div class="space-y-3">
+              <div class="h-4 w-full rounded-lg bg-muted/30"></div>
+              <div class="h-4 w-11/12 rounded-lg bg-muted/30"></div>
+              <div class="h-4 w-4/5 rounded-lg bg-muted/30"></div>
+            </div>
+            <ShimmerOverlay class="rounded-2xl" />
+          </div>
         {:else if cardSetError}
           <p class="text-sm text-destructive">{cardSetError}</p>
         {:else if cardSetDetails?.description}

@@ -1,19 +1,19 @@
 <script lang="ts">
-  import { App as CapacitorApp } from '@capacitor/app'
+  import {App as CapacitorApp} from '@capacitor/app'
   import promptTemplate from '../prompt.txt?raw'
   import {
-    createCardSet,
-    getCardSet,
-    getSessionState,
-    passCurrentCard,
-    skipCurrentCard,
-    startSession,
-    uploadImage,
     type CardData,
     type CardImage,
     type CardSet,
+    createCardSet,
     type CreateCardSetRequest,
+    getCardSet,
+    getSessionState,
+    passCurrentCard,
     type SessionState,
+    skipCurrentCard,
+    startSession,
+    uploadImage,
   } from '$lib/api/flashcards'
   import HomePage from '$lib/components/app/home-page.svelte'
   import CardsetPage from '$lib/components/app/cardset-page.svelte'
@@ -264,12 +264,10 @@
     const raw = localStorage.getItem(STORAGE_KEY)
     const parsed = raw ? (JSON.parse(raw) as Record<string, SessionRecord[]>) : {}
     const current = Array.isArray(parsed[cardsetId]) ? parsed[cardsetId] : []
-    const next = [
-      { id: sessionId, updatedAt: new Date().toISOString() },
+    parsed[cardsetId] = [
+      {id: sessionId, updatedAt: new Date().toISOString()},
       ...current.filter((session) => session.id !== sessionId),
     ]
-
-    parsed[cardsetId] = next
     localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed))
     syncRecentSessions()
   }
